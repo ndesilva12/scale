@@ -106,6 +106,35 @@ export default function GroupPage() {
     }
   }, [isCreator, groupId]);
 
+  // Auto-add creator as member if not already in group (for groups created before this feature)
+  useEffect(() => {
+    const addCreatorAsMember = async () => {
+      if (!user || !group || !isCreator) return;
+
+      // Check if creator is already a member
+      const creatorIsMember = members.some((m) => m.clerkId === user.id);
+      if (creatorIsMember) return;
+
+      // Add creator as first member
+      console.log('Auto-adding creator as member...');
+      await addMember(
+        groupId,
+        user.emailAddresses[0]?.emailAddress || '',
+        user.fullName || user.firstName || 'Creator',
+        null, // placeholderImageUrl
+        user.id, // clerkId
+        'accepted', // status
+        user.imageUrl, // imageUrl
+        true // isCreator
+      );
+    };
+
+    // Only run when we have loaded the group and members
+    if (group && members !== undefined && !loading) {
+      addCreatorAsMember();
+    }
+  }, [group, members, isCreator, user, groupId, loading]);
+
   const handleAddMember = async (data: { email: string; name: string; placeholderImageUrl: string }) => {
     if (!user || !group) return;
 
