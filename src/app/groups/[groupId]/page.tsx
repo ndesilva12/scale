@@ -276,11 +276,11 @@ export default function GroupPage() {
               <>
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    X:
+                    Y:
                   </label>
                   <select
-                    value={xMetricId}
-                    onChange={(e) => setXMetricId(e.target.value)}
+                    value={yMetricId}
+                    onChange={(e) => setYMetricId(e.target.value)}
                     className="text-sm px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                   >
                     {metricOptions.map((opt) => (
@@ -293,11 +293,11 @@ export default function GroupPage() {
 
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    Y:
+                    X:
                   </label>
                   <select
-                    value={yMetricId}
-                    onChange={(e) => setYMetricId(e.target.value)}
+                    value={xMetricId}
+                    onChange={(e) => setXMetricId(e.target.value)}
                     className="text-sm px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                   >
                     {metricOptions.map((opt) => (
@@ -315,6 +315,16 @@ export default function GroupPage() {
         {/* Content */}
         {viewMode === 'graph' && (
           <Card className="p-4 sm:p-6">
+            {/* Graph Title */}
+            <h2 className="text-center text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
+              <span className="text-blue-600 dark:text-blue-400">
+                {group.metrics.find((m) => m.id === yMetricId)?.name || 'Y Metric'}
+              </span>
+              <span className="mx-2 text-gray-400 dark:text-gray-500 font-normal">×</span>
+              <span className="text-emerald-600 dark:text-emerald-400">
+                {group.metrics.find((m) => m.id === xMetricId)?.name || 'X Metric'}
+              </span>
+            </h2>
             <div className="w-full" style={{ paddingLeft: '3rem', paddingBottom: '2rem' }}>
               <div className="w-full aspect-[4/3] lg:aspect-[16/10] max-h-[70vh]">
                 <MemberGraph
