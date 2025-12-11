@@ -35,6 +35,7 @@ import {
   respondToClaimRequest,
   updateMemberVisibility,
   uploadMemberImage,
+  updateMember,
 } from '@/lib/firestore';
 
 type ViewMode = 'graph' | 'table' | 'rate';
@@ -105,6 +106,35 @@ export default function GroupPage() {
     }
   }, [isCreator, groupId]);
 
+  // Auto-add creator as member if not already in group (for groups created before this feature)
+  useEffect(() => {
+    const addCreatorAsMember = async () => {
+      if (!user || !group || !isCreator) return;
+
+      // Check if creator is already a member
+      const creatorIsMember = members.some((m) => m.clerkId === user.id);
+      if (creatorIsMember) return;
+
+      // Add creator as first member
+      console.log('Auto-adding creator as member...');
+      await addMember(
+        groupId,
+        user.emailAddresses[0]?.emailAddress || '',
+        user.fullName || user.firstName || 'Creator',
+        null, // placeholderImageUrl
+        user.id, // clerkId
+        'accepted', // status
+        user.imageUrl, // imageUrl
+        true // isCreator
+      );
+    };
+
+    // Only run when we have loaded the group and members
+    if (group && members !== undefined && !loading) {
+      addCreatorAsMember();
+    }
+  }, [group, members, isCreator, user, groupId, loading]);
+
   const handleAddMember = async (data: { email: string; name: string; placeholderImageUrl: string }) => {
     if (!user || !group) return;
 
@@ -138,6 +168,10 @@ export default function GroupPage() {
 
   const handleToggleVisibility = async (memberId: string, visible: boolean) => {
     await updateMemberVisibility(memberId, visible);
+  };
+
+  const handleEditMember = async (memberId: string, data: { name: string; email: string }) => {
+    await updateMember(memberId, { name: data.name, email: data.email });
   };
 
   const handleApproveClaimRequest = async (request: ClaimRequest) => {
@@ -316,12 +350,12 @@ export default function GroupPage() {
         {viewMode === 'graph' && (
           <Card className="p-4 sm:p-6">
             {/* Graph Title */}
-            <h2 className="text-center text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
-              <span className="text-blue-600 dark:text-blue-400">
+            <h2 className="text-center text-2xl md:text-3xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 dark:from-blue-400 dark:via-blue-300 dark:to-cyan-400 bg-clip-text text-transparent">
                 {group.metrics.find((m) => m.id === yMetricId)?.name || 'Y Metric'}
               </span>
-              <span className="mx-2 text-gray-400 dark:text-gray-500 font-normal">×</span>
-              <span className="text-emerald-600 dark:text-emerald-400">
+              <span className="mx-3 text-gray-300 dark:text-gray-600 font-normal">×</span>
+              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-400 dark:via-emerald-300 dark:to-teal-400 bg-clip-text text-transparent">
                 {group.metrics.find((m) => m.id === xMetricId)?.name || 'X Metric'}
               </span>
             </h2>
@@ -334,6 +368,11 @@ export default function GroupPage() {
                   xMetricId={xMetricId}
                   yMetricId={yMetricId}
                   onMemberClick={handleMemberClick}
+                  currentUserId={user?.id || null}
+                  existingRatings={ratings}
+                  onSubmitRating={handleSubmitRating}
+                  canRate={canRate}
+                  isCreator={isCreator}
                 />
               </div>
             </div>
@@ -350,6 +389,12 @@ export default function GroupPage() {
               onMemberClick={handleMemberClick}
               onToggleVisibility={handleToggleVisibility}
               showVisibilityToggle={true}
+              currentUserId={user?.id || null}
+              existingRatings={ratings}
+              onSubmitRating={handleSubmitRating}
+              canRate={canRate}
+              isCreator={isCreator}
+              onEditMember={handleEditMember}
             />
           </Card>
         )}
