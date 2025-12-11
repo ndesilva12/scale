@@ -12,6 +12,8 @@ import {
   SlidersHorizontal,
   Users,
   AlertCircle,
+  Settings,
+  Anchor,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -22,7 +24,7 @@ import MemberGraph from '@/components/graph/MemberGraph';
 import DataTable from '@/components/graph/DataTable';
 import AddMemberForm from '@/components/groups/AddMemberForm';
 import RatingForm from '@/components/groups/RatingForm';
-import { Group, GroupMember, Rating, AggregatedScore, ClaimRequest } from '@/types';
+import { Group, GroupMember, Rating, AggregatedScore, ClaimRequest, Metric, MetricPrefix, MetricSuffix, MetricDisplayMode } from '@/types';
 import {
   subscribeToGroup,
   subscribeToMembers,
@@ -36,6 +38,7 @@ import {
   updateMemberVisibility,
   uploadMemberImage,
   updateMember,
+  updateGroup,
 } from '@/lib/firestore';
 
 type ViewMode = 'graph' | 'table' | 'rate';
@@ -55,12 +58,15 @@ export default function GroupPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showClaimRequestsModal, setShowClaimRequestsModal] = useState(false);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
+  const [editingMetrics, setEditingMetrics] = useState<Metric[]>([]);
 
   // Graph state
   const [xMetricId, setXMetricId] = useState<string>('');
   const [yMetricId, setYMetricId] = useState<string>('');
 
-  const isCreator = group?.creatorId === user?.id;
+  // Use captainId with backward compatibility for creatorId
+  const isCaptain = group?.captainId === user?.id;
   const currentMember = members.find((m) => m.clerkId === user?.id);
   const canRate = currentMember?.status === 'accepted';
 
@@ -99,41 +105,41 @@ export default function GroupPage() {
     }
   }, [group, members, ratings]);
 
-  // Load claim requests for creator
+  // Load claim requests for captain
   useEffect(() => {
-    if (isCreator && groupId) {
+    if (isCaptain && groupId) {
       getGroupClaimRequests(groupId).then(setClaimRequests);
     }
-  }, [isCreator, groupId]);
+  }, [isCaptain, groupId]);
 
-  // Auto-add creator as member if not already in group (for groups created before this feature)
+  // Auto-add captain as member if not already in group (for groups created before this feature)
   useEffect(() => {
-    const addCreatorAsMember = async () => {
-      if (!user || !group || !isCreator) return;
+    const addCaptainAsMember = async () => {
+      if (!user || !group || !isCaptain) return;
 
-      // Check if creator is already a member
-      const creatorIsMember = members.some((m) => m.clerkId === user.id);
-      if (creatorIsMember) return;
+      // Check if captain is already a member
+      const captainIsMember = members.some((m) => m.clerkId === user.id);
+      if (captainIsMember) return;
 
-      // Add creator as first member
-      console.log('Auto-adding creator as member...');
+      // Add captain as first member
+      console.log('Auto-adding captain as member...');
       await addMember(
         groupId,
         user.emailAddresses[0]?.emailAddress || '',
-        user.fullName || user.firstName || 'Creator',
+        user.fullName || user.firstName || 'Captain',
         null, // placeholderImageUrl
         user.id, // clerkId
         'accepted', // status
         user.imageUrl, // imageUrl
-        true // isCreator
+        true // isCaptain
       );
     };
 
     // Only run when we have loaded the group and members
     if (group && members !== undefined && !loading) {
-      addCreatorAsMember();
+      addCaptainAsMember();
     }
-  }, [group, members, isCreator, user, groupId, loading]);
+  }, [group, members, isCaptain, user, groupId, loading]);
 
   const handleAddMember = async (data: { email: string; name: string; placeholderImageUrl: string }) => {
     if (!user || !group) return;
@@ -170,8 +176,49 @@ export default function GroupPage() {
     await updateMemberVisibility(memberId, visible);
   };
 
-  const handleEditMember = async (memberId: string, data: { name: string; email: string }) => {
-    await updateMember(memberId, { name: data.name, email: data.email });
+  const handleEditMember = async (memberId: string, data: { name: string; email: string; imageUrl?: string }) => {
+    await updateMember(memberId, { name: data.name, email: data.email, placeholderImageUrl: data.imageUrl });
+  };
+
+  const handleOpenMetricsModal = () => {
+    if (group) {
+      setEditingMetrics([...group.metrics]);
+      setShowMetricsModal(true);
+    }
+  };
+
+  const handleSaveMetrics = async () => {
+    if (!group) return;
+    await updateGroup(groupId, { metrics: editingMetrics });
+    setShowMetricsModal(false);
+  };
+
+  const handleAddMetric = () => {
+    const newMetric: Metric = {
+      id: `metric-${Date.now()}`,
+      name: '',
+      description: '',
+      order: editingMetrics.length,
+      minValue: 0,
+      maxValue: 100,
+      prefix: '',
+      suffix: '',
+      displayMode: 'scaled',
+    };
+    setEditingMetrics([...editingMetrics, newMetric]);
+  };
+
+  const handleUpdateMetric = (index: number, updates: Partial<Metric>) => {
+    setEditingMetrics(editingMetrics.map((m, i) => (i === index ? { ...m, ...updates } : m)));
+  };
+
+  const handleDeleteMetric = (index: number) => {
+    setEditingMetrics(editingMetrics.filter((_, i) => i !== index));
+  };
+
+  const handleUploadMemberImage = async (memberId: string, file: File) => {
+    const imageUrl = await uploadMemberImage(groupId, file);
+    await updateMember(memberId, { placeholderImageUrl: imageUrl });
   };
 
   const handleApproveClaimRequest = async (request: ClaimRequest) => {
@@ -249,7 +296,7 @@ export default function GroupPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              {claimRequests.length > 0 && isCreator && (
+              {claimRequests.length > 0 && isCaptain && (
                 <Button
                   variant="outline"
                   onClick={() => setShowClaimRequestsModal(true)}
@@ -262,11 +309,17 @@ export default function GroupPage() {
                   </span>
                 </Button>
               )}
-              {isCreator && (
-                <Button onClick={() => setShowAddMemberModal(true)}>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Add Member
-                </Button>
+              {isCaptain && (
+                <>
+                  <Button variant="outline" onClick={handleOpenMetricsModal}>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Metrics
+                  </Button>
+                  <Button onClick={() => setShowAddMemberModal(true)}>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Member
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -372,7 +425,7 @@ export default function GroupPage() {
                   existingRatings={ratings}
                   onSubmitRating={handleSubmitRating}
                   canRate={canRate}
-                  isCreator={isCreator}
+                  isCaptain={isCaptain}
                 />
               </div>
             </div>
@@ -393,8 +446,9 @@ export default function GroupPage() {
               existingRatings={ratings}
               onSubmitRating={handleSubmitRating}
               canRate={canRate}
-              isCreator={isCreator}
+              isCaptain={isCaptain}
               onEditMember={handleEditMember}
+              onUploadMemberImage={handleUploadMemberImage}
             />
           </Card>
         )}
@@ -419,11 +473,11 @@ export default function GroupPage() {
               No members yet
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {isCreator
+              {isCaptain
                 ? 'Add members to start rating and visualizing your group.'
-                : 'The group creator hasn\'t added any members yet.'}
+                : 'The group captain hasn\'t added any members yet.'}
             </p>
-            {isCreator && (
+            {isCaptain && (
               <Button onClick={() => setShowAddMemberModal(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
                 Add First Member
@@ -490,6 +544,135 @@ export default function GroupPage() {
               );
             })
           )}
+        </div>
+      </Modal>
+
+      {/* Metrics Management Modal */}
+      <Modal
+        isOpen={showMetricsModal}
+        onClose={() => setShowMetricsModal(false)}
+        title="Manage Metrics"
+      >
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          {editingMetrics.map((metric, index) => (
+            <div key={metric.id} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-500">Metric {index + 1}</span>
+                <button
+                  onClick={() => handleDeleteMetric(index)}
+                  className="text-red-500 hover:text-red-700 text-sm"
+                >
+                  Remove
+                </button>
+              </div>
+
+              <input
+                type="text"
+                placeholder="Metric name"
+                value={metric.name}
+                onChange={(e) => handleUpdateMetric(index, { name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+              />
+
+              <input
+                type="text"
+                placeholder="Description (optional)"
+                value={metric.description}
+                onChange={(e) => handleUpdateMetric(index, { description: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Min Value</label>
+                  <input
+                    type="number"
+                    value={metric.minValue}
+                    onChange={(e) => handleUpdateMetric(index, { minValue: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Max Value</label>
+                  <input
+                    type="number"
+                    max={1000000}
+                    value={metric.maxValue}
+                    onChange={(e) => handleUpdateMetric(index, { maxValue: Math.min(1000000, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Prefix</label>
+                  <select
+                    value={metric.prefix}
+                    onChange={(e) => handleUpdateMetric(index, { prefix: e.target.value as MetricPrefix })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                  >
+                    <option value="">None</option>
+                    <option value="#">#</option>
+                    <option value="$">$</option>
+                    <option value="€">€</option>
+                    <option value="£">£</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Suffix</label>
+                  <select
+                    value={metric.suffix}
+                    onChange={(e) => handleUpdateMetric(index, { suffix: e.target.value as MetricSuffix })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                  >
+                    <option value="">None</option>
+                    <option value="%">%</option>
+                    <option value="K">K (thousands)</option>
+                    <option value="M">M (millions)</option>
+                    <option value="B">B (billions)</option>
+                    <option value="T">T (trillions)</option>
+                    <option value=" thousand"> thousand</option>
+                    <option value=" million"> million</option>
+                    <option value=" billion"> billion</option>
+                    <option value=" trillion"> trillion</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Display Mode</label>
+                <select
+                  value={metric.displayMode}
+                  onChange={(e) => handleUpdateMetric(index, { displayMode: e.target.value as MetricDisplayMode })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                >
+                  <option value="scaled">Scaled (auto-distribute across graph)</option>
+                  <option value="nominal">Nominal (exact values)</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  {metric.displayMode === 'scaled'
+                    ? 'Data points will be spread across the entire graph space'
+                    : 'Data points will be plotted at their exact value positions'}
+                </p>
+              </div>
+            </div>
+          ))}
+
+          {editingMetrics.length < 10 && (
+            <Button variant="outline" onClick={handleAddMetric} className="w-full">
+              + Add Metric
+            </Button>
+          )}
+        </div>
+
+        <div className="flex gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <Button variant="outline" onClick={() => setShowMetricsModal(false)} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={handleSaveMetrics} className="flex-1">
+            Save Metrics
+          </Button>
         </div>
       </Modal>
     </div>

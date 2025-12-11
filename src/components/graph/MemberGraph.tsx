@@ -18,7 +18,7 @@ interface MemberGraphProps {
   existingRatings?: Rating[];
   onSubmitRating?: (metricId: string, targetMemberId: string, value: number) => Promise<void>;
   canRate?: boolean;
-  isCreator?: boolean;
+  isCaptain?: boolean;
 }
 
 interface PopupData {
@@ -41,36 +41,88 @@ export default function MemberGraph({
   existingRatings = [],
   onSubmitRating,
   canRate = false,
-  isCreator = false,
+  isCaptain = false,
 }: MemberGraphProps) {
   const [popup, setPopup] = useState<PopupData | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   const xMetric = metrics.find((m) => m.id === xMetricId);
   const yMetric = metrics.find((m) => m.id === yMetricId);
 
-  // Calculate positions for each member
-  const plottedMembers = useMemo(() => {
-    return members
-      .filter((m) => m.status === 'accepted' || m.status === 'placeholder')
-      .map((member) => {
-        const xScore = scores.find(
-          (s) => s.memberId === member.id && s.metricId === xMetricId
-        );
-        const yScore = scores.find(
-          (s) => s.memberId === member.id && s.metricId === yMetricId
-        );
+  // Helper to format metric value with prefix/suffix
+  const formatValue = (value: number, metric: Metric | undefined): string => {
+    if (!metric) return value.toFixed(1);
+    return `${metric.prefix}${value.toFixed(1)}${metric.suffix}`;
+  };
 
-        return {
-          member,
-          xValue: xScore?.averageValue ?? 50,
-          yValue: yScore?.averageValue ?? 50,
-        };
+  // Calculate positions for each member (considering scaled vs nominal display)
+  const plottedMembers = useMemo(() => {
+    const activeMembers = members.filter((m) => m.status === 'accepted' || m.status === 'placeholder');
+
+    // Get raw scores for each member
+    const rawData = activeMembers.map((member) => {
+      const xScore = scores.find(
+        (s) => s.memberId === member.id && s.metricId === xMetricId
+      );
+      const yScore = scores.find(
+        (s) => s.memberId === member.id && s.metricId === yMetricId
+      );
+
+      return {
+        member,
+        xRaw: xScore?.averageValue ?? 50,
+        yRaw: yScore?.averageValue ?? 50,
+      };
+    });
+
+    // Calculate scaled positions if needed
+    const xIsScaled = xMetric?.displayMode === 'scaled';
+    const yIsScaled = yMetric?.displayMode === 'scaled';
+
+    // For scaled mode, distribute values evenly across the graph
+    // Sort by value and assign evenly spaced positions
+    let xPositions: Record<string, number> = {};
+    let yPositions: Record<string, number> = {};
+
+    if (xIsScaled && rawData.length > 1) {
+      const sorted = [...rawData].sort((a, b) => a.xRaw - b.xRaw);
+      sorted.forEach((item, index) => {
+        // Distribute from 5% to 95% to keep avatars visible
+        xPositions[item.member.id] = 5 + (index / (sorted.length - 1)) * 90;
       });
-  }, [members, scores, xMetricId, yMetricId]);
+    }
+
+    if (yIsScaled && rawData.length > 1) {
+      const sorted = [...rawData].sort((a, b) => a.yRaw - b.yRaw);
+      sorted.forEach((item, index) => {
+        yPositions[item.member.id] = 5 + (index / (sorted.length - 1)) * 90;
+      });
+    }
+
+    return rawData.map((data) => {
+      // For nominal mode, map the raw value to a percentage of the metric range
+      const xMin = xMetric?.minValue ?? 0;
+      const xMax = xMetric?.maxValue ?? 100;
+      const yMin = yMetric?.minValue ?? 0;
+      const yMax = yMetric?.maxValue ?? 100;
+
+      // Calculate nominal position as percentage of range
+      const xNominal = xMax > xMin ? ((data.xRaw - xMin) / (xMax - xMin)) * 100 : 50;
+      const yNominal = yMax > yMin ? ((data.yRaw - yMin) / (yMax - yMin)) * 100 : 50;
+
+      return {
+        member: data.member,
+        xValue: xIsScaled ? (xPositions[data.member.id] ?? xNominal) : xNominal,
+        yValue: yIsScaled ? (yPositions[data.member.id] ?? yNominal) : yNominal,
+        xRaw: data.xRaw,
+        yRaw: data.yRaw,
+      };
+    });
+  }, [members, scores, xMetricId, yMetricId, xMetric, yMetric]);
 
   // Load existing ratings when popup member changes
   useEffect(() => {
@@ -83,7 +135,9 @@ export default function MemberGraph({
             r.metricId === metric.id &&
             r.raterId === currentUserId
         );
-        memberRatings[metric.id] = existing?.value ?? 50;
+        // Use metric midpoint as default
+        const defaultValue = Math.round((metric.minValue + metric.maxValue) / 2);
+        memberRatings[metric.id] = existing?.value ?? defaultValue;
       });
       setRatings(memberRatings);
     }
@@ -149,20 +203,40 @@ export default function MemberGraph({
     []
   );
 
-  const handleRatingChange = (metricId: string, value: number) => {
-    setRatings((prev) => ({ ...prev, [metricId]: value }));
-  };
-
-  const handleSaveRating = async (metricId: string) => {
-    if (!popup?.member || !onSubmitRating) return;
+  // Auto-save rating with debounce
+  const autoSaveRating = useCallback(async (metricId: string, memberId: string, value: number) => {
+    if (!onSubmitRating) return;
 
     setSaving(metricId);
     try {
-      await onSubmitRating(metricId, popup.member.id, ratings[metricId]);
+      await onSubmitRating(metricId, memberId, value);
     } finally {
       setSaving(null);
     }
+  }, [onSubmitRating]);
+
+  const handleRatingChange = (metricId: string, value: number) => {
+    setRatings((prev) => ({ ...prev, [metricId]: value }));
+
+    // Clear any existing timeout for this metric
+    if (saveTimeoutRef.current[metricId]) {
+      clearTimeout(saveTimeoutRef.current[metricId]);
+    }
+
+    // Set new timeout for auto-save (500ms debounce)
+    if (popup?.member) {
+      saveTimeoutRef.current[metricId] = setTimeout(() => {
+        autoSaveRating(metricId, popup.member.id, value);
+      }, 500);
+    }
   };
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimeoutRef.current).forEach(clearTimeout);
+    };
+  }, []);
 
   const handleViewProfile = () => {
     if (popup?.member) {
@@ -225,20 +299,30 @@ export default function MemberGraph({
 
       {/* Y-axis scale */}
       <div className="absolute left-1 md:left-2 top-0 bottom-0 flex flex-col justify-between py-2 text-xs text-gray-500 dark:text-gray-400">
-        <span>100</span>
-        <span>75</span>
-        <span>50</span>
-        <span>25</span>
-        <span>0</span>
+        {(() => {
+          const min = yMetric?.minValue ?? 0;
+          const max = yMetric?.maxValue ?? 100;
+          const range = max - min;
+          const prefix = yMetric?.prefix ?? '';
+          const suffix = yMetric?.suffix ?? '';
+          return [100, 75, 50, 25, 0].map((pct) => (
+            <span key={pct}>{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
+          ));
+        })()}
       </div>
 
       {/* X-axis scale */}
       <div className="absolute left-0 right-0 bottom-1 md:bottom-2 flex justify-between px-2 text-xs text-gray-500 dark:text-gray-400">
-        <span>0</span>
-        <span>25</span>
-        <span>50</span>
-        <span>75</span>
-        <span>100</span>
+        {(() => {
+          const min = xMetric?.minValue ?? 0;
+          const max = xMetric?.maxValue ?? 100;
+          const range = max - min;
+          const prefix = xMetric?.prefix ?? '';
+          const suffix = xMetric?.suffix ?? '';
+          return [0, 25, 50, 75, 100].map((pct) => (
+            <span key={pct}>{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
+          ));
+        })()}
       </div>
 
       {/* Plotted members */}
@@ -329,15 +413,19 @@ export default function MemberGraph({
               </div>
             </div>
 
-            {/* Current scores */}
+            {/* Current scores - show raw values with formatting */}
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
               <div className="flex justify-between">
                 <span>{yMetric?.name}:</span>
-                <span className="font-medium text-gray-900 dark:text-white">{popup.yValue.toFixed(1)}</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {formatValue(plottedMembers.find(p => p.member.id === popup.member.id)?.yRaw ?? 0, yMetric)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>{xMetric?.name}:</span>
-                <span className="font-medium text-gray-900 dark:text-white">{popup.xValue.toFixed(1)}</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {formatValue(plottedMembers.find(p => p.member.id === popup.member.id)?.xRaw ?? 0, xMetric)}
+                </span>
               </div>
             </div>
 
@@ -345,7 +433,7 @@ export default function MemberGraph({
             {popup.isPinned && canRate && onSubmitRating && (
               <div className="mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Your Ratings:
+                  Your Ratings (auto-saves):
                 </div>
                 <div className="space-y-3 max-h-[200px] overflow-y-auto">
                   {metrics.map((metric) => (
@@ -353,23 +441,19 @@ export default function MemberGraph({
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-gray-700 dark:text-gray-300">{metric.name}</span>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900 dark:text-white w-8 text-right">
-                            {ratings[metric.id] ?? 50}
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            {metric.prefix}{ratings[metric.id] ?? Math.round((metric.minValue + metric.maxValue) / 2)}{metric.suffix}
                           </span>
-                          <button
-                            onClick={() => handleSaveRating(metric.id)}
-                            disabled={saving !== null}
-                            className="text-xs px-2 py-0.5 bg-blue-500 hover:bg-blue-600 text-white rounded disabled:opacity-50"
-                          >
-                            {saving === metric.id ? '...' : 'Save'}
-                          </button>
+                          {saving === metric.id && (
+                            <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          )}
                         </div>
                       </div>
                       <Slider
-                        value={ratings[metric.id] ?? 50}
+                        value={ratings[metric.id] ?? Math.round((metric.minValue + metric.maxValue) / 2)}
                         onChange={(e) => handleRatingChange(metric.id, Number(e.target.value))}
-                        min={0}
-                        max={100}
+                        min={metric.minValue}
+                        max={metric.maxValue}
                         className="h-1.5"
                       />
                     </div>

@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { Eye, EyeOff, Crown, Pencil, Check, X } from 'lucide-react';
+import { Eye, EyeOff, Anchor, Pencil, Check, X, Upload, Camera } from 'lucide-react';
 import { GroupMember, Metric, AggregatedScore, Rating } from '@/types';
 import Avatar from '@/components/ui/Avatar';
 
@@ -18,8 +18,9 @@ interface DataTableProps {
   existingRatings?: Rating[];
   onSubmitRating?: (metricId: string, targetMemberId: string, value: number) => Promise<void>;
   canRate?: boolean;
-  isCreator?: boolean;
-  onEditMember?: (memberId: string, data: { name: string; email: string }) => Promise<void>;
+  isCaptain?: boolean;
+  onEditMember?: (memberId: string, data: { name: string; email: string; imageUrl?: string }) => Promise<void>;
+  onUploadMemberImage?: (memberId: string, file: File) => Promise<void>;
 }
 
 export default function DataTable({
@@ -34,14 +35,18 @@ export default function DataTable({
   existingRatings = [],
   onSubmitRating,
   canRate = false,
-  isCreator = false,
+  isCaptain = false,
   onEditMember,
+  onUploadMemberImage,
 }: DataTableProps) {
   const [editingCell, setEditingCell] = useState<{ memberId: string; metricId: string } | null>(null);
   const [editValue, setEditValue] = useState<number>(50);
   const [saving, setSaving] = useState(false);
   const [editingMember, setEditingMember] = useState<string | null>(null);
   const [editMemberData, setEditMemberData] = useState<{ name: string; email: string }>({ name: '', email: '' });
+  const [uploadingImage, setUploadingImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeMembers = useMemo(
     () => members.filter((m) => m.status === 'accepted' || m.status === 'placeholder'),
@@ -83,19 +88,38 @@ export default function DataTable({
     setEditValue(existingValue ?? 50);
   };
 
-  const handleSaveRating = async () => {
-    if (!editingCell || !onSubmitRating) return;
+  // Auto-save with debounce
+  const autoSaveRating = useCallback(async (metricId: string, memberId: string, value: number) => {
+    if (!onSubmitRating) return;
 
     setSaving(true);
     try {
-      await onSubmitRating(editingCell.metricId, editingCell.memberId, editValue);
-      setEditingCell(null);
+      await onSubmitRating(metricId, memberId, value);
     } finally {
       setSaving(false);
+    }
+  }, [onSubmitRating]);
+
+  const handleSliderChange = (value: number) => {
+    setEditValue(value);
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set new timeout for auto-save (500ms debounce)
+    if (editingCell) {
+      saveTimeoutRef.current = setTimeout(() => {
+        autoSaveRating(editingCell.metricId, editingCell.memberId, value);
+      }, 500);
     }
   };
 
   const handleCancelEdit = () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
     setEditingCell(null);
   };
 
@@ -120,13 +144,47 @@ export default function DataTable({
     setEditingMember(null);
   };
 
-  const canEditMember = (member: GroupMember) => {
-    // Creator can edit unclaimed (placeholder) members
-    return isCreator && member.status === 'placeholder' && !member.clerkId;
+  const handleImageUpload = async (memberId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !onUploadMemberImage) return;
+
+    setUploadingImage(memberId);
+    try {
+      await onUploadMemberImage(memberId, file);
+    } finally {
+      setUploadingImage(null);
+    }
   };
+
+  const canEditMember = (member: GroupMember) => {
+    // Captain can edit unclaimed (placeholder) members
+    return isCaptain && member.status === 'placeholder' && !member.clerkId;
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="overflow-x-auto">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          const memberId = fileInputRef.current?.dataset.memberId;
+          if (memberId) {
+            handleImageUpload(memberId, e);
+          }
+        }}
+        className="hidden"
+      />
+
       <table className="w-full border-collapse">
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700">
@@ -216,9 +274,46 @@ export default function DataTable({
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
+                    <div className="relative group">
+                      <Link
+                        href={`/groups/${groupId}/members/${member.id}`}
+                        className="flex items-center gap-3 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        onClick={(e) => {
+                          if (onMemberClick) {
+                            e.preventDefault();
+                            onMemberClick(member);
+                          }
+                        }}
+                      >
+                        <Avatar
+                          src={member.imageUrl || member.placeholderImageUrl}
+                          alt={member.name}
+                          size="sm"
+                        />
+                      </Link>
+                      {/* Image upload button for unclaimed members */}
+                      {canEditMember(member) && onUploadMemberImage && (
+                        <button
+                          onClick={() => {
+                            if (fileInputRef.current) {
+                              fileInputRef.current.dataset.memberId = member.id;
+                              fileInputRef.current.click();
+                            }
+                          }}
+                          className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Upload image"
+                        >
+                          {uploadingImage === member.id ? (
+                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Camera className="w-3 h-3" />
+                          )}
+                        </button>
+                      )}
+                    </div>
                     <Link
                       href={`/groups/${groupId}/members/${member.id}`}
-                      className="flex items-center gap-3 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                       onClick={(e) => {
                         if (onMemberClick) {
                           e.preventDefault();
@@ -226,22 +321,17 @@ export default function DataTable({
                         }
                       }}
                     >
-                      <Avatar
-                        src={member.imageUrl || member.placeholderImageUrl}
-                        alt={member.name}
-                        size="sm"
-                      />
                       <div>
                         <div className="font-medium text-gray-900 dark:text-white flex items-center gap-1.5">
                           {member.name}
-                          {member.isCreator && (
-                            <span title="Group Creator">
-                              <Crown className="w-3.5 h-3.5 text-yellow-500" />
+                          {member.isCaptain && (
+                            <span title="Group Captain">
+                              <Anchor className="w-3.5 h-3.5 text-blue-500" />
                             </span>
                           )}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {member.isCreator ? 'Creator' : member.status === 'placeholder' ? 'Pending' : 'Active'}
+                          {member.isCaptain ? 'Captain' : member.status === 'placeholder' ? 'Pending' : 'Active'}
                         </div>
                       </div>
                     </Link>
@@ -272,21 +362,19 @@ export default function DataTable({
                       <div className="flex flex-col items-center gap-2">
                         <input
                           type="range"
-                          min={0}
-                          max={100}
+                          min={metric.minValue}
+                          max={metric.maxValue}
                           value={editValue}
-                          onChange={(e) => setEditValue(Number(e.target.value))}
+                          onChange={(e) => handleSliderChange(Number(e.target.value))}
                           className="w-full h-2 accent-blue-500"
                         />
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">{editValue}</span>
-                          <button
-                            onClick={handleSaveRating}
-                            disabled={saving}
-                            className="p-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-                          >
-                            <Check className="w-3 h-3" />
-                          </button>
+                          <span className="text-sm font-medium">
+                            {metric.prefix}{editValue}{metric.suffix}
+                          </span>
+                          {saving && (
+                            <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          )}
                           <button
                             onClick={handleCancelEdit}
                             className="p-1 bg-gray-500 text-white rounded hover:bg-gray-600"
@@ -301,14 +389,14 @@ export default function DataTable({
                         onClick={() => canRate && onSubmitRating && handleStartEdit(member.id, metric.id)}
                       >
                         <div className={`font-semibold ${getScoreColor(score)}`}>
-                          {score.toFixed(1)}
+                          {metric.prefix}{score.toFixed(1)}{metric.suffix}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {count} rating{count !== 1 ? 's' : ''}
                         </div>
                         {userRating !== null && (
                           <div className="text-xs text-blue-500 dark:text-blue-400 mt-1">
-                            Your: {userRating}
+                            Your: {metric.prefix}{userRating}{metric.suffix}
                           </div>
                         )}
                       </div>

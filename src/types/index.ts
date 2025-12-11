@@ -1,12 +1,17 @@
 // Core data types for the Loyalty application
 
+export type MetricDisplayMode = 'nominal' | 'scaled';
+
+export type MetricPrefix = '' | '#' | '$' | '€' | '£';
+export type MetricSuffix = '' | '%' | 'K' | 'M' | 'B' | 'T' | ' thousand' | ' million' | ' billion' | ' trillion';
+
 export interface User {
   id: string;
   clerkId: string | null; // null if placeholder user
   email: string;
   name: string;
   imageUrl: string | null;
-  placeholderImageUrl: string | null; // Set by group creator for unregistered users
+  placeholderImageUrl: string | null; // Set by group captain for unregistered users
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,7 +20,7 @@ export interface Group {
   id: string;
   name: string;
   description: string;
-  creatorId: string; // Clerk user ID
+  captainId: string; // Clerk user ID of the group captain
   metrics: Metric[];
   createdAt: Date;
   updatedAt: Date;
@@ -26,6 +31,11 @@ export interface Metric {
   name: string;
   description: string;
   order: number; // For display ordering
+  minValue: number; // Default 0
+  maxValue: number; // Default 100, max 1,000,000
+  prefix: MetricPrefix; // e.g., '$', '#'
+  suffix: MetricSuffix; // e.g., '%', 'K', 'M'
+  displayMode: MetricDisplayMode; // 'nominal' = exact values, 'scaled' = auto-distribute (default)
 }
 
 export interface GroupMember {
@@ -39,7 +49,7 @@ export interface GroupMember {
   placeholderImageUrl: string | null;
   status: 'pending' | 'accepted' | 'declined' | 'placeholder';
   visibleInGraph: boolean; // Whether to show this member in the graph visualization
-  isCreator: boolean; // Whether this member is the group creator
+  isCaptain: boolean; // Whether this member is the group captain
   invitedAt: Date;
   respondedAt: Date | null;
 }
@@ -50,7 +60,7 @@ export interface Rating {
   metricId: string;
   raterId: string; // Who is giving the rating (Clerk ID)
   targetMemberId: string; // Who is being rated (GroupMember ID)
-  value: number; // 0-100
+  value: number; // Between metric's minValue and maxValue
   createdAt: Date;
   updatedAt: Date;
 }
@@ -117,3 +127,20 @@ export interface RatingForm {
   targetMemberId: string;
   value: number;
 }
+
+// Helper function to create default metric values
+export const createDefaultMetric = (name: string, description: string, order: number): Omit<Metric, 'id'> => ({
+  name,
+  description,
+  order,
+  minValue: 0,
+  maxValue: 100,
+  prefix: '',
+  suffix: '',
+  displayMode: 'scaled',
+});
+
+// Helper to format metric value with prefix/suffix
+export const formatMetricValue = (value: number, metric: Metric): string => {
+  return `${metric.prefix}${value}${metric.suffix}`;
+};

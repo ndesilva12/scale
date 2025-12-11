@@ -25,6 +25,7 @@ import {
   Invitation,
   ClaimRequest,
   Metric,
+  createDefaultMetric,
 } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -46,7 +47,7 @@ const convertTimestamp = (timestamp: Timestamp | Date | null): Date => {
 // ============ GROUP OPERATIONS ============
 
 export async function createGroup(
-  creatorId: string,
+  captainId: string,
   name: string,
   description: string,
   metrics: Omit<Metric, 'id'>[]
@@ -57,14 +58,19 @@ export async function createGroup(
   const metricsWithIds: Metric[] = metrics.map((m, index) => ({
     ...m,
     id: uuidv4(),
-    order: index,
+    order: m.order ?? index,
+    minValue: m.minValue ?? 0,
+    maxValue: m.maxValue ?? 100,
+    prefix: m.prefix ?? '',
+    suffix: m.suffix ?? '',
+    displayMode: m.displayMode ?? 'scaled',
   }));
 
   const group: Group = {
     id: groupId,
     name,
     description,
-    creatorId,
+    captainId,
     metrics: metricsWithIds,
     createdAt: now,
     updatedAt: now,
@@ -84,28 +90,66 @@ export async function getGroup(groupId: string): Promise<Group | null> {
   if (!docSnap.exists()) return null;
 
   const data = docSnap.data();
+  // Handle backward compatibility: creatorId -> captainId
+  const captainId = data.captainId || data.creatorId;
+  // Ensure metrics have all required fields
+  const metrics = (data.metrics || []).map((m: Partial<Metric>) => ({
+    ...m,
+    minValue: m.minValue ?? 0,
+    maxValue: m.maxValue ?? 100,
+    prefix: m.prefix ?? '',
+    suffix: m.suffix ?? '',
+    displayMode: m.displayMode ?? 'scaled',
+  }));
+
   return {
     ...data,
     id: docSnap.id,
+    captainId,
+    metrics,
     createdAt: convertTimestamp(data.createdAt),
     updatedAt: convertTimestamp(data.updatedAt),
   } as Group;
 }
 
 export async function getUserGroups(clerkId: string): Promise<Group[]> {
-  // Get groups where user is creator
+  // Get groups where user is captain (check both old and new field names for backward compatibility)
+  const captainQuery = query(groupsCollection, where('captainId', '==', clerkId));
   const creatorQuery = query(groupsCollection, where('creatorId', '==', clerkId));
-  const creatorDocs = await getDocs(creatorQuery);
 
-  const groups: Group[] = creatorDocs.docs.map((doc) => {
-    const data = doc.data();
-    return {
+  const [captainDocs, creatorDocs] = await Promise.all([
+    getDocs(captainQuery),
+    getDocs(creatorQuery),
+  ]);
+
+  const groupMap = new Map<string, Group>();
+
+  // Process both queries and deduplicate
+  [...captainDocs.docs, ...creatorDocs.docs].forEach((docSnap) => {
+    if (groupMap.has(docSnap.id)) return;
+
+    const data = docSnap.data();
+    const captainId = data.captainId || data.creatorId;
+    const metrics = (data.metrics || []).map((m: Partial<Metric>) => ({
+      ...m,
+      minValue: m.minValue ?? 0,
+      maxValue: m.maxValue ?? 100,
+      prefix: m.prefix ?? '',
+      suffix: m.suffix ?? '',
+      displayMode: m.displayMode ?? 'scaled',
+    }));
+
+    groupMap.set(docSnap.id, {
       ...data,
-      id: doc.id,
+      id: docSnap.id,
+      captainId,
+      metrics,
       createdAt: convertTimestamp(data.createdAt),
       updatedAt: convertTimestamp(data.updatedAt),
-    } as Group;
+    } as Group);
   });
+
+  const groups: Group[] = Array.from(groupMap.values());
 
   // Also get groups where user is a member
   const memberQuery = query(membersCollection, where('clerkId', '==', clerkId), where('status', '==', 'accepted'));
@@ -172,7 +216,7 @@ export async function addMember(
   clerkId: string | null = null,
   status: GroupMember['status'] = 'placeholder',
   imageUrl: string | null = null,
-  isCreator: boolean = false
+  isCaptain: boolean = false
 ): Promise<GroupMember> {
   const memberId = uuidv4();
   const now = new Date();
@@ -188,15 +232,15 @@ export async function addMember(
     placeholderImageUrl,
     status,
     visibleInGraph: true,
-    isCreator,
+    isCaptain,
     invitedAt: now,
-    respondedAt: isCreator ? now : null,
+    respondedAt: isCaptain ? now : null,
   };
 
   await setDoc(doc(membersCollection, memberId), {
     ...member,
     invitedAt: Timestamp.fromDate(now),
-    respondedAt: isCreator ? Timestamp.fromDate(now) : null,
+    respondedAt: isCaptain ? Timestamp.fromDate(now) : null,
   });
 
   return member;
@@ -215,18 +259,20 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
 
   const members = docs.docs.map((doc) => {
     const data = doc.data();
+    // Handle backward compatibility: isCreator -> isCaptain
+    const isCaptain = data.isCaptain ?? data.isCreator ?? false;
     return {
       ...data,
       id: doc.id,
       visibleInGraph: data.visibleInGraph ?? true,
-      isCreator: data.isCreator ?? false,
+      isCaptain,
       invitedAt: convertTimestamp(data.invitedAt),
       respondedAt: data.respondedAt ? convertTimestamp(data.respondedAt) : null,
     } as GroupMember;
   });
 
-  // Sort so creator is first
-  return members.sort((a, b) => (b.isCreator ? 1 : 0) - (a.isCreator ? 1 : 0));
+  // Sort so captain is first
+  return members.sort((a, b) => (b.isCaptain ? 1 : 0) - (a.isCaptain ? 1 : 0));
 }
 
 export async function getMember(memberId: string): Promise<GroupMember | null> {
@@ -562,15 +608,29 @@ export function subscribeToGroup(
   groupId: string,
   callback: (group: Group | null) => void
 ): () => void {
-  return onSnapshot(doc(groupsCollection, groupId), (doc) => {
-    if (!doc.exists()) {
+  return onSnapshot(doc(groupsCollection, groupId), (docSnap) => {
+    if (!docSnap.exists()) {
       callback(null);
       return;
     }
-    const data = doc.data();
+    const data = docSnap.data();
+    // Handle backward compatibility: creatorId -> captainId
+    const captainId = data.captainId || data.creatorId;
+    // Ensure metrics have all required fields
+    const metrics = (data.metrics || []).map((m: Partial<Metric>) => ({
+      ...m,
+      minValue: m.minValue ?? 0,
+      maxValue: m.maxValue ?? 100,
+      prefix: m.prefix ?? '',
+      suffix: m.suffix ?? '',
+      displayMode: m.displayMode ?? 'scaled',
+    }));
+
     callback({
       ...data,
-      id: doc.id,
+      id: docSnap.id,
+      captainId,
+      metrics,
       createdAt: convertTimestamp(data.createdAt),
       updatedAt: convertTimestamp(data.updatedAt),
     } as Group);
@@ -585,17 +645,19 @@ export function subscribeToMembers(
   return onSnapshot(q, (snapshot) => {
     const members = snapshot.docs.map((doc) => {
       const data = doc.data();
+      // Handle backward compatibility: isCreator -> isCaptain
+      const isCaptain = data.isCaptain ?? data.isCreator ?? false;
       return {
         ...data,
         id: doc.id,
         visibleInGraph: data.visibleInGraph ?? true,
-        isCreator: data.isCreator ?? false,
+        isCaptain,
         invitedAt: convertTimestamp(data.invitedAt),
         respondedAt: data.respondedAt ? convertTimestamp(data.respondedAt) : null,
       } as GroupMember;
     });
-    // Sort so creator is first
-    callback(members.sort((a, b) => (b.isCreator ? 1 : 0) - (a.isCreator ? 1 : 0)));
+    // Sort so captain is first
+    callback(members.sort((a, b) => (b.isCaptain ? 1 : 0) - (a.isCaptain ? 1 : 0)));
   });
 }
 

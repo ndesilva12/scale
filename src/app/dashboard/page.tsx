@@ -53,23 +53,33 @@ export default function DashboardPage() {
   const handleCreateGroup = async (data: {
     name: string;
     description: string;
-    metrics: { name: string; description: string; order: number }[];
+    metrics: { name: string; description: string; order: number; minValue?: number; maxValue?: number; prefix?: string; suffix?: string; displayMode?: string }[];
   }) => {
     if (!user) return;
 
-    // Create the group
-    const group = await createGroup(user.id, data.name, data.description, data.metrics);
+    // Create the group - ensure metrics have all required fields with defaults
+    const metricsWithDefaults = data.metrics.map((m) => ({
+      name: m.name,
+      description: m.description,
+      order: m.order,
+      minValue: m.minValue ?? 0,
+      maxValue: m.maxValue ?? 100,
+      prefix: (m.prefix ?? '') as '' | '#' | '$' | '€' | '£',
+      suffix: (m.suffix ?? '') as '' | '%' | 'K' | 'M' | 'B' | 'T' | ' thousand' | ' million' | ' billion' | ' trillion',
+      displayMode: (m.displayMode ?? 'scaled') as 'nominal' | 'scaled',
+    }));
+    const group = await createGroup(user.id, data.name, data.description, metricsWithDefaults);
 
-    // Add the creator as the first member
+    // Add the captain as the first member
     await addMember(
       group.id,
       user.emailAddresses[0]?.emailAddress || '',
-      user.fullName || user.firstName || 'Creator',
+      user.fullName || user.firstName || 'Captain',
       null, // placeholderImageUrl
       user.id, // clerkId
       'accepted', // status
       user.imageUrl, // imageUrl (uses Google auth image if available)
-      true // isCreator
+      true // isCaptain
     );
 
     setShowCreateModal(false);
