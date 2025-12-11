@@ -13,9 +13,9 @@ export default function Home() {
       <section className="flex-1 flex flex-col items-center justify-center px-4 py-16 md:py-24">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-            Visualize Your Team&apos;s{' '}
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Strengths
+            Map Group{' '}
+            <span className="bg-gradient-to-r from-blue-600 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+              Opinions
             </span>
           </h1>
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">

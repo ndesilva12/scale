@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { User } from 'lucide-react';
-import { GroupMember, Metric, AggregatedScore } from '@/types';
+import { User, ExternalLink, X } from 'lucide-react';
+import { GroupMember, Metric, AggregatedScore, Rating } from '@/types';
+import Button from '@/components/ui/Button';
+import Slider from '@/components/ui/Slider';
 
 interface MemberGraphProps {
   members: GroupMember[];
@@ -12,14 +14,20 @@ interface MemberGraphProps {
   xMetricId: string;
   yMetricId: string;
   onMemberClick: (member: GroupMember) => void;
+  currentUserId?: string | null;
+  existingRatings?: Rating[];
+  onSubmitRating?: (metricId: string, targetMemberId: string, value: number) => Promise<void>;
+  canRate?: boolean;
+  isCreator?: boolean;
 }
 
-interface TooltipData {
+interface PopupData {
   member: GroupMember;
   xValue: number;
   yValue: number;
   x: number;
   y: number;
+  isPinned: boolean;
 }
 
 export default function MemberGraph({
@@ -29,8 +37,17 @@ export default function MemberGraph({
   xMetricId,
   yMetricId,
   onMemberClick,
+  currentUserId,
+  existingRatings = [],
+  onSubmitRating,
+  canRate = false,
+  isCreator = false,
 }: MemberGraphProps) {
-  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+  const [popup, setPopup] = useState<PopupData | null>(null);
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const xMetric = metrics.find((m) => m.id === xMetricId);
   const yMetric = metrics.find((m) => m.id === yMetricId);
@@ -55,26 +72,113 @@ export default function MemberGraph({
       });
   }, [members, scores, xMetricId, yMetricId]);
 
+  // Load existing ratings when popup member changes
+  useEffect(() => {
+    if (popup?.member && currentUserId) {
+      const memberRatings: Record<string, number> = {};
+      metrics.forEach((metric) => {
+        const existing = existingRatings.find(
+          (r) =>
+            r.targetMemberId === popup.member.id &&
+            r.metricId === metric.id &&
+            r.raterId === currentUserId
+        );
+        memberRatings[metric.id] = existing?.value ?? 50;
+      });
+      setRatings(memberRatings);
+    }
+  }, [popup?.member?.id, existingRatings, metrics, currentUserId]);
+
+  // Handle click outside to close pinned popup
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popup?.isPinned && popupRef.current && !popupRef.current.contains(event.target as Node)) {
+        // Check if click was on a member avatar
+        const target = event.target as HTMLElement;
+        if (!target.closest('[data-member-avatar]')) {
+          setPopup(null);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [popup?.isPinned]);
+
   const handleMouseEnter = useCallback(
     (data: typeof plottedMembers[0], event: React.MouseEvent) => {
+      // Don't override pinned popup on hover
+      if (popup?.isPinned) return;
+
       const rect = event.currentTarget.getBoundingClientRect();
-      setTooltip({
+      const containerRect = containerRef.current?.getBoundingClientRect();
+
+      setPopup({
         member: data.member,
         xValue: data.xValue,
         yValue: data.yValue,
-        x: rect.left + rect.width / 2,
-        y: rect.top,
+        x: rect.left + rect.width / 2 - (containerRect?.left || 0),
+        y: rect.top - (containerRect?.top || 0),
+        isPinned: false,
+      });
+    },
+    [popup?.isPinned]
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    // Don't close pinned popup on mouse leave
+    if (popup?.isPinned) return;
+    setPopup(null);
+  }, [popup?.isPinned]);
+
+  const handleClick = useCallback(
+    (data: typeof plottedMembers[0], event: React.MouseEvent) => {
+      event.stopPropagation();
+      const rect = event.currentTarget.getBoundingClientRect();
+      const containerRect = containerRef.current?.getBoundingClientRect();
+
+      setPopup({
+        member: data.member,
+        xValue: data.xValue,
+        yValue: data.yValue,
+        x: rect.left + rect.width / 2 - (containerRect?.left || 0),
+        y: rect.top - (containerRect?.top || 0),
+        isPinned: true,
       });
     },
     []
   );
 
-  const handleMouseLeave = useCallback(() => {
-    setTooltip(null);
-  }, []);
+  const handleRatingChange = (metricId: string, value: number) => {
+    setRatings((prev) => ({ ...prev, [metricId]: value }));
+  };
+
+  const handleSaveRating = async (metricId: string) => {
+    if (!popup?.member || !onSubmitRating) return;
+
+    setSaving(metricId);
+    try {
+      await onSubmitRating(metricId, popup.member.id, ratings[metricId]);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleViewProfile = () => {
+    if (popup?.member) {
+      onMemberClick(popup.member);
+    }
+  };
+
+  const handleClosePopup = () => {
+    setPopup(null);
+  };
 
   return (
-    <div className="relative w-full h-full min-h-[400px] bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
+    <div
+      ref={containerRef}
+      className="relative w-full h-full min-h-[400px] bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700"
+    >
       {/* Y-axis label */}
       <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 md:pr-4">
         <div className="transform -rotate-90 whitespace-nowrap text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -145,6 +249,7 @@ export default function MemberGraph({
           return (
             <div
               key={data.member.id}
+              data-member-avatar
               className="absolute transform -translate-x-1/2 translate-y-1/2 cursor-pointer transition-transform duration-300 ease-out hover:scale-125 hover:z-10"
               style={{
                 left: `${data.xValue}%`,
@@ -152,7 +257,7 @@ export default function MemberGraph({
               }}
               onMouseEnter={(e) => handleMouseEnter(data, e)}
               onMouseLeave={handleMouseLeave}
-              onClick={() => onMemberClick(data.member)}
+              onClick={(e) => handleClick(data, e)}
             >
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden border-2 border-white dark:border-gray-800 shadow-lg bg-gray-200 dark:bg-gray-700">
                 {imageUrl ? (
@@ -174,26 +279,123 @@ export default function MemberGraph({
         })}
       </div>
 
-      {/* Tooltip */}
-      {tooltip && (
+      {/* Enhanced Popup */}
+      {popup && (
         <div
-          className="fixed z-50 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded-lg shadow-xl pointer-events-none transform -translate-x-1/2 -translate-y-full"
+          ref={popupRef}
+          className={`absolute z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 transform -translate-x-1/2 ${
+            popup.isPinned ? 'min-w-[280px]' : 'min-w-[200px]'
+          }`}
           style={{
-            left: tooltip.x,
-            top: tooltip.y - 8,
+            left: popup.x,
+            top: Math.max(10, popup.y - (popup.isPinned ? 320 : 100)),
           }}
         >
-          <div className="font-semibold">{tooltip.member.name}</div>
-          <div className="text-gray-300 text-xs mt-1">
-            <div>
-              {xMetric?.name}: {tooltip.xValue.toFixed(1)}
+          {/* Close button for pinned popup */}
+          {popup.isPinned && (
+            <button
+              onClick={handleClosePopup}
+              className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          )}
+
+          <div className="p-4">
+            {/* Member info header */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                {popup.member.imageUrl || popup.member.placeholderImageUrl ? (
+                  <Image
+                    src={popup.member.imageUrl || popup.member.placeholderImageUrl || ''}
+                    alt={popup.member.name}
+                    width={48}
+                    height={48}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <User className="w-6 h-6 text-gray-500" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-gray-900 dark:text-white truncate">
+                  {popup.member.name}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {popup.member.status === 'placeholder' ? 'Pending' : 'Active'}
+                </div>
+              </div>
             </div>
-            <div>
-              {yMetric?.name}: {tooltip.yValue.toFixed(1)}
+
+            {/* Current scores */}
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex justify-between">
+                <span>{yMetric?.name}:</span>
+                <span className="font-medium text-gray-900 dark:text-white">{popup.yValue.toFixed(1)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>{xMetric?.name}:</span>
+                <span className="font-medium text-gray-900 dark:text-white">{popup.xValue.toFixed(1)}</span>
+              </div>
             </div>
+
+            {/* Rating inputs - only show when pinned and user can rate */}
+            {popup.isPinned && canRate && onSubmitRating && (
+              <div className="mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                  Your Ratings:
+                </div>
+                <div className="space-y-3 max-h-[200px] overflow-y-auto">
+                  {metrics.map((metric) => (
+                    <div key={metric.id} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-700 dark:text-gray-300">{metric.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-white w-8 text-right">
+                            {ratings[metric.id] ?? 50}
+                          </span>
+                          <button
+                            onClick={() => handleSaveRating(metric.id)}
+                            disabled={saving !== null}
+                            className="text-xs px-2 py-0.5 bg-blue-500 hover:bg-blue-600 text-white rounded disabled:opacity-50"
+                          >
+                            {saving === metric.id ? '...' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+                      <Slider
+                        value={ratings[metric.id] ?? 50}
+                        onChange={(e) => handleRatingChange(metric.id, Number(e.target.value))}
+                        min={0}
+                        max={100}
+                        className="h-1.5"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* View Profile button */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleViewProfile}
+              className="w-full"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              View Profile
+            </Button>
           </div>
-          <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full">
-            <div className="border-8 border-transparent border-t-gray-900 dark:border-t-gray-700" />
+
+          {/* Arrow pointer */}
+          <div
+            className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full"
+            style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.1))' }}
+          >
+            <div className="border-8 border-transparent border-t-white dark:border-t-gray-800" />
           </div>
         </div>
       )}
