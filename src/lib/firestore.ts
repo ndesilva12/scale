@@ -75,6 +75,7 @@ export async function createGroup(
     metrics: metricsWithIds,
     lockedYMetricId: null,
     lockedXMetricId: null,
+    captainControlEnabled: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -111,6 +112,7 @@ export async function getGroup(groupId: string): Promise<Group | null> {
     metrics,
     lockedYMetricId: data.lockedYMetricId ?? null,
     lockedXMetricId: data.lockedXMetricId ?? null,
+    captainControlEnabled: data.captainControlEnabled ?? false,
     createdAt: convertTimestamp(data.createdAt),
     updatedAt: convertTimestamp(data.updatedAt),
   } as Group;
@@ -149,6 +151,7 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
       metrics,
       lockedYMetricId: data.lockedYMetricId ?? null,
       lockedXMetricId: data.lockedXMetricId ?? null,
+      captainControlEnabled: data.captainControlEnabled ?? false,
       createdAt: convertTimestamp(data.createdAt),
       updatedAt: convertTimestamp(data.updatedAt),
     } as Group);
@@ -178,7 +181,7 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
 
 export async function updateGroup(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'lockedYMetricId' | 'lockedXMetricId'>>
+  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled'>>
 ): Promise<void> {
   await updateDoc(doc(groupsCollection, groupId), {
     ...updates,
@@ -649,6 +652,7 @@ export function subscribeToGroup(
       metrics,
       lockedYMetricId: data.lockedYMetricId ?? null,
       lockedXMetricId: data.lockedXMetricId ?? null,
+      captainControlEnabled: data.captainControlEnabled ?? false,
       createdAt: convertTimestamp(data.createdAt),
       updatedAt: convertTimestamp(data.updatedAt),
     } as Group);

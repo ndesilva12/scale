@@ -18,6 +18,7 @@ export const mockGroup: Group = {
   metrics: mockMetrics,
   lockedYMetricId: null,
   lockedXMetricId: null,
+  captainControlEnabled: false,
   createdAt: new Date('2024-01-15'),
   updatedAt: new Date('2024-03-01'),
 };

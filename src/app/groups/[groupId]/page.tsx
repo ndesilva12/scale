@@ -70,6 +70,7 @@ export default function GroupPage() {
   const [editingGroupDescription, setEditingGroupDescription] = useState('');
   const [editingLockedYMetricId, setEditingLockedYMetricId] = useState<string | null>(null);
   const [editingLockedXMetricId, setEditingLockedXMetricId] = useState<string | null>(null);
+  const [editingCaptainControlEnabled, setEditingCaptainControlEnabled] = useState(false);
   const [savingGroupSettings, setSavingGroupSettings] = useState(false);
 
   // Graph state
@@ -255,6 +256,7 @@ export default function GroupPage() {
       setEditingGroupDescription(group.description || '');
       setEditingLockedYMetricId(group.lockedYMetricId);
       setEditingLockedXMetricId(group.lockedXMetricId);
+      setEditingCaptainControlEnabled(group.captainControlEnabled);
       setShowGroupSettingsModal(true);
     }
   };
@@ -268,6 +270,7 @@ export default function GroupPage() {
         description: editingGroupDescription.trim(),
         lockedYMetricId: editingLockedYMetricId,
         lockedXMetricId: editingLockedXMetricId,
+        captainControlEnabled: editingCaptainControlEnabled,
       });
       setShowGroupSettingsModal(false);
     } finally {
@@ -537,8 +540,13 @@ export default function GroupPage() {
               onSubmitRating={handleSubmitRating}
               canRate={canRate}
               isCaptain={isCaptain}
+              captainControlEnabled={group.captainControlEnabled}
               onEditMember={handleEditMember}
               onUploadMemberImage={handleUploadMemberImage}
+              onUploadCustomImage={async (memberId, file) => {
+                const imageUrl = await uploadMemberImage(groupId, file);
+                await updateMember(memberId, { customImageUrl: imageUrl });
+              }}
               onRemoveMember={handleRemoveMember}
               onCopyClaimLink={handleCopyClaimLink}
               onSendClaimInvite={handleSendClaimInvite}
@@ -782,6 +790,35 @@ export default function GroupPage() {
               rows={3}
               className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
+          </div>
+
+          {/* Captain Control Toggle */}
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Captain Control
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Always use custom display names and images set by captain
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingCaptainControlEnabled(!editingCaptainControlEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  editingCaptainControlEnabled
+                    ? 'bg-blue-600'
+                    : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    editingCaptainControlEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
 

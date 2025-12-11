@@ -283,21 +283,6 @@ export default function MemberProfilePage() {
             </div>
           )}
 
-          {/* Overall average */}
-          {group.metrics.length > 0 && scores.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Overall Average
-                </span>
-                <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                  {(
-                    scores.reduce((sum, s) => sum + s.averageValue, 0) / scores.length
-                  ).toFixed(1)}
-                </span>
-              </div>
-            </div>
-          )}
         </Card>
       </main>
     </div>

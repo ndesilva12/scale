@@ -20,8 +20,10 @@ interface DataTableProps {
   onSubmitRating?: (metricId: string, targetMemberId: string, value: number) => Promise<void>;
   canRate?: boolean;
   isCaptain?: boolean;
+  captainControlEnabled?: boolean;
   onEditMember?: (memberId: string, data: { name: string; email: string; imageUrl?: string }) => Promise<void>;
   onUploadMemberImage?: (memberId: string, file: File) => Promise<void>;
+  onUploadCustomImage?: (memberId: string, file: File) => Promise<void>;
   onRemoveMember?: (memberId: string) => Promise<void>;
   onCopyClaimLink?: (memberId: string) => Promise<void>;
   onSendClaimInvite?: (memberId: string, email: string) => Promise<void>;
@@ -42,8 +44,10 @@ export default function DataTable({
   onSubmitRating,
   canRate = false,
   isCaptain = false,
+  captainControlEnabled = false,
   onEditMember,
   onUploadMemberImage,
+  onUploadCustomImage,
   onRemoveMember,
   onCopyClaimLink,
   onSendClaimInvite,
@@ -173,8 +177,13 @@ export default function DataTable({
   };
 
   const canEditMember = (member: GroupMember) => {
-    // Captain can edit unclaimed (placeholder) members
+    // Captain can edit unclaimed (placeholder) members directly
     return isCaptain && member.status === 'placeholder' && !member.clerkId;
+  };
+
+  const canEditCustomDisplay = (member: GroupMember) => {
+    // Captain can edit custom display for all members (name/image shown in group)
+    return isCaptain && !member.isCaptain;
   };
 
   // Cleanup timeout on unmount
@@ -186,6 +195,18 @@ export default function DataTable({
     };
   }, []);
 
+  const handleCustomImageUpload = async (memberId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !onUploadCustomImage) return;
+
+    setUploadingImage(memberId);
+    try {
+      await onUploadCustomImage(memberId, file);
+    } finally {
+      setUploadingImage(null);
+    }
+  };
+
   return (
     <div className="overflow-x-auto">
       <input
@@ -196,6 +217,18 @@ export default function DataTable({
           const memberId = fileInputRef.current?.dataset.memberId;
           if (memberId) {
             handleImageUpload(memberId, e);
+          }
+        }}
+        className="hidden"
+      />
+      <input
+        ref={customImageInputRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          const memberId = customImageInputRef.current?.dataset.memberId;
+          if (memberId) {
+            handleCustomImageUpload(memberId, e);
           }
         }}
         className="hidden"
@@ -444,17 +477,16 @@ export default function DataTable({
 
                     {/* Actions dropdown */}
                     {showMemberActions === member.id && (
-                      <div className="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20">
+                      <div className="absolute right-0 top-full mt-1 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20">
                         <div className="p-2 space-y-1">
-                          {/* Display mode toggle for claimed members */}
-                          {member.clerkId && (
+                          {/* Custom display settings for all non-captain members */}
+                          {canEditCustomDisplay(member) && (
                             <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Display Mode</p>
-                              <div className="flex gap-1">
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Display in Group</p>
+                              <div className="flex gap-1 mb-3">
                                 <button
                                   onClick={() => {
                                     onToggleDisplayMode?.(member.id, 'user');
-                                    setShowMemberActions(null);
                                   }}
                                   className={`flex-1 px-2 py-1 text-xs rounded ${
                                     member.displayMode === 'user'
@@ -463,12 +495,11 @@ export default function DataTable({
                                   }`}
                                 >
                                   <User className="w-3 h-3 inline mr-1" />
-                                  User
+                                  User Profile
                                 </button>
                                 <button
                                   onClick={() => {
                                     onToggleDisplayMode?.(member.id, 'custom');
-                                    setShowMemberActions(null);
                                   }}
                                   className={`flex-1 px-2 py-1 text-xs rounded ${
                                     member.displayMode === 'custom'
@@ -479,6 +510,79 @@ export default function DataTable({
                                   <Pencil className="w-3 h-3 inline mr-1" />
                                   Custom
                                 </button>
+                              </div>
+
+                              {/* Custom name input */}
+                              <div className="space-y-2">
+                                <div>
+                                  <label className="text-xs text-gray-500 dark:text-gray-400">Custom Name</label>
+                                  <input
+                                    type="text"
+                                    value={editingDisplaySettings === member.id ? customNameInput : (member.customName || '')}
+                                    onChange={(e) => {
+                                      setEditingDisplaySettings(member.id);
+                                      setCustomNameInput(e.target.value);
+                                    }}
+                                    onBlur={() => {
+                                      if (editingDisplaySettings === member.id) {
+                                        onUpdateCustomDisplay?.(member.id, { customName: customNameInput || undefined });
+                                        setEditingDisplaySettings(null);
+                                      }
+                                    }}
+                                    onFocus={() => {
+                                      setEditingDisplaySettings(member.id);
+                                      setCustomNameInput(member.customName || '');
+                                    }}
+                                    placeholder={member.name}
+                                    className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+
+                                {/* Custom image upload */}
+                                <div>
+                                  <label className="text-xs text-gray-500 dark:text-gray-400">Custom Image</label>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {member.customImageUrl && (
+                                      <img
+                                        src={member.customImageUrl}
+                                        alt="Custom"
+                                        className="w-8 h-8 rounded-full object-cover"
+                                      />
+                                    )}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (customImageInputRef.current) {
+                                          customImageInputRef.current.dataset.memberId = member.id;
+                                          customImageInputRef.current.click();
+                                        }
+                                      }}
+                                      className="flex-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center gap-1"
+                                    >
+                                      {uploadingImage === member.id ? (
+                                        <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <>
+                                          <Camera className="w-3 h-3" />
+                                          {member.customImageUrl ? 'Change' : 'Upload'}
+                                        </>
+                                      )}
+                                    </button>
+                                    {member.customImageUrl && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onUpdateCustomDisplay?.(member.id, { customImageUrl: '' });
+                                        }}
+                                        className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                        title="Remove custom image"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           )}

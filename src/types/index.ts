@@ -22,6 +22,7 @@ export interface Group {
   metrics: Metric[];
   lockedYMetricId: string | null; // If set, this metric is locked as the Y-axis
   lockedXMetricId: string | null; // If set, this metric is locked as the X-axis
+  captainControlEnabled: boolean; // If true, captain can always edit member display (name/image) even after claimed
   createdAt: Date;
   updatedAt: Date;
 }
