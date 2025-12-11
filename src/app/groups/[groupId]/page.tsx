@@ -388,6 +388,7 @@ export default function GroupPage() {
           onSubmit={handleAddMember}
           onCancel={() => setShowAddMemberModal(false)}
           onUploadImage={(file) => uploadMemberImage(groupId, file)}
+          existingEmails={members.map((m) => m.email.toLowerCase())}
         />
       </Modal>
 

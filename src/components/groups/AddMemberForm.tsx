@@ -1,19 +1,50 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, Link as LinkIcon, X } from 'lucide-react';
+import { Upload, Link as LinkIcon, X, UserPlus } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Avatar from '@/components/ui/Avatar';
 
 type ImageSourceType = 'url' | 'upload';
+
+// Suggested members (mock accounts for demo/testing)
+const suggestedMembers = [
+  {
+    name: 'Sarah Johnson',
+    email: 'sarah.johnson@example.com',
+    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah&backgroundColor=ffdfbf',
+  },
+  {
+    name: 'Marcus Williams',
+    email: 'marcus.williams@example.com',
+    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Marcus&backgroundColor=c0aede',
+  },
+  {
+    name: 'Emily Davis',
+    email: 'emily.davis@example.com',
+    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emily&backgroundColor=d1f4d1',
+  },
+  {
+    name: 'James Taylor',
+    email: 'james.taylor@example.com',
+    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=James&backgroundColor=ffd5dc',
+  },
+  {
+    name: 'Olivia Martinez',
+    email: 'olivia.martinez@example.com',
+    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Olivia&backgroundColor=fff4c0',
+  },
+];
 
 interface AddMemberFormProps {
   onSubmit: (data: { email: string; name: string; placeholderImageUrl: string }) => Promise<void>;
   onCancel: () => void;
   onUploadImage?: (file: File) => Promise<string>;
+  existingEmails?: string[];
 }
 
-export default function AddMemberForm({ onSubmit, onCancel, onUploadImage }: AddMemberFormProps) {
+export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, existingEmails = [] }: AddMemberFormProps) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [placeholderImageUrl, setPlaceholderImageUrl] = useState('');
@@ -23,6 +54,20 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage }: Add
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter out already added members
+  const availableSuggestions = suggestedMembers.filter(
+    (s) => !existingEmails.includes(s.email.toLowerCase())
+  );
+
+  const handleSelectSuggestion = (suggestion: typeof suggestedMembers[0]) => {
+    setName(suggestion.name);
+    setEmail(suggestion.email);
+    setPlaceholderImageUrl(suggestion.imageUrl);
+    setImageSourceType('url');
+    // Clear any file selection
+    handleClearFile();
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,8 +125,16 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage }: Add
       let finalImageUrl = '';
 
       if (imageSourceType === 'upload' && selectedFile && onUploadImage) {
-        // Upload the file and get the URL
-        finalImageUrl = await onUploadImage(selectedFile);
+        try {
+          // Upload the file and get the URL
+          finalImageUrl = await onUploadImage(selectedFile);
+        } catch (uploadErr) {
+          // Handle upload error gracefully - continue without image
+          console.error('Image upload failed:', uploadErr);
+          setError('Image upload failed (CORS issue). Member will be added without custom image. You can configure Firebase Storage CORS settings to enable uploads.');
+          // Don't return - allow member to be added without image
+          finalImageUrl = '';
+        }
       } else if (imageSourceType === 'url') {
         finalImageUrl = placeholderImageUrl.trim();
       }
@@ -105,6 +158,36 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage }: Add
           {error}
         </div>
       )}
+
+      {/* Suggestions Section */}
+      {availableSuggestions.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Quick Add (Suggestions)
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {availableSuggestions.map((suggestion) => (
+              <button
+                key={suggestion.email}
+                type="button"
+                onClick={() => handleSelectSuggestion(suggestion)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+              >
+                <Avatar
+                  src={suggestion.imageUrl}
+                  alt={suggestion.name}
+                  size="xs"
+                />
+                <span className="text-gray-700 dark:text-gray-300">{suggestion.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Or enter details manually:</p>
+      </div>
 
       <Input
         label="Name"
@@ -207,6 +290,9 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage }: Add
               onChange={handleFileSelect}
               className="hidden"
             />
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+              Note: Image upload requires Firebase Storage CORS configuration.
+            </p>
           </div>
         )}
       </div>
