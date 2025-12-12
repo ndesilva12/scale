@@ -106,7 +106,7 @@ export default function DashboardPage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+          <div className="animate-spin w-8 h-8 border-4 border-lime-600 border-t-transparent rounded-full" />
         </div>
       </div>
     );
@@ -119,9 +119,9 @@ export default function DashboardPage() {
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Pending Invitations */}
         {invitations.length > 0 && (
-          <Card className="mb-8 p-6 border-l-4 border-l-blue-500">
+          <Card className="mb-8 p-6 border-l-4 border-l-lime-600">
             <div className="flex items-center gap-3 mb-4">
-              <Bell className="w-5 h-5 text-blue-600" />
+              <Bell className="w-5 h-5 text-lime-600" />
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Pending Invitations
               </h2>
@@ -171,7 +171,7 @@ export default function DashboardPage() {
               Manage your groups and view member ratings
             </p>
           </div>
-          <Button onClick={() => setShowCreateModal(true)}>
+          <Button variant="secondary" onClick={() => setShowCreateModal(true)}>
             <Plus className="w-4 h-4 mr-2" />
             New Group
           </Button>
@@ -189,7 +189,7 @@ export default function DashboardPage() {
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               Create your first group to start rating team members
             </p>
-            <Button onClick={() => setShowCreateModal(true)}>
+            <Button variant="secondary" onClick={() => setShowCreateModal(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Create Group
             </Button>
@@ -197,14 +197,14 @@ export default function DashboardPage() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {groups.map((group, index) => {
-              // Rotate through different gradient colors for visual variety
+              // Rotate through different red gradient shades for visual variety
               const gradients = [
-                'from-blue-500 to-cyan-500',
-                'from-purple-500 to-pink-500',
-                'from-emerald-500 to-teal-500',
-                'from-orange-500 to-amber-500',
-                'from-rose-500 to-red-500',
-                'from-indigo-500 to-violet-500',
+                'from-lime-600 to-lime-500',
+                'from-lime-500 to-lime-500',
+                'from-lime-700 to-lime-500',
+                'from-lime-500 to-lime-500',
+                'from-lime-600 to-lime-500',
+                'from-lime-500 to-lime-400',
               ];
               const gradient = gradients[index % gradients.length];
 

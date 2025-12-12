@@ -120,20 +120,20 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+        <div className="p-3 bg-lime-50 dark:bg-lime-700/20 border border-lime-200 dark:border-lime-600 rounded-lg text-lime-500 dark:text-lime-400 text-sm">
           {error}
         </div>
       )}
 
       {/* Copy Invite Link Section */}
-      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      <div className="p-4 bg-lime-50 dark:bg-lime-700/20 border border-lime-200 dark:border-lime-700 rounded-lg">
         <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
           Share this link to let people join your group:
         </p>
         <button
           type="button"
           onClick={handleCopyInviteLink}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-lg text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-lime-300 dark:border-lime-500 rounded-lg text-lime-500 dark:text-lime-300 hover:bg-lime-50 dark:hover:bg-lime-700/30 transition-colors"
         >
           {linkCopied ? (
             <>
@@ -173,7 +173,7 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Brief description"
           maxLength={100}
-          className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
+          className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-lime-600 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
         />
       </div>
 
@@ -188,7 +188,7 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
             onClick={() => setImageSourceType('url')}
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
               imageSourceType === 'url'
-                ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-300'
+                ? 'bg-lime-50 dark:bg-lime-700/30 border-lime-600 text-lime-500 dark:text-lime-300'
                 : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`}
           >
@@ -200,7 +200,7 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
             onClick={() => setImageSourceType('upload')}
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
               imageSourceType === 'upload'
-                ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-300'
+                ? 'bg-lime-50 dark:bg-lime-700/30 border-lime-600 text-lime-500 dark:text-lime-300'
                 : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`}
           >
@@ -226,7 +226,7 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
             {!selectedFile ? (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
+                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-lime-600 dark:hover:border-lime-400 transition-colors"
               >
                 <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                 <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -246,7 +246,7 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
                 <button
                   type="button"
                   onClick={handleClearFile}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-lime-500 text-white rounded-full flex items-center justify-center hover:bg-lime-500 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -273,7 +273,7 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
             type="checkbox"
             checked={isUser}
             onChange={(e) => setIsUser(e.target.checked)}
-            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            className="w-4 h-4 text-lime-600 border-gray-300 rounded focus:ring-lime-600"
           />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             This item represents a user

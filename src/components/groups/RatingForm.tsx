@@ -162,7 +162,7 @@ export default function RatingForm({
                 p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2
                 ${
                   selectedMember?.id === member.id
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    ? 'border-lime-600 bg-lime-50 dark:bg-lime-700/20'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                 }
               `}
@@ -176,7 +176,7 @@ export default function RatingForm({
                 {member.name}
               </span>
               {member.clerkId === currentUserId && (
-                <span className="text-xs text-blue-600 dark:text-blue-400">(You)</span>
+                <span className="text-xs text-lime-600 dark:text-lime-400">(You)</span>
               )}
             </button>
           ))}
@@ -226,7 +226,7 @@ export default function RatingForm({
                         {metric.prefix}{ratings[metric.id] ?? defaultValue}{metric.suffix}
                       </span>
                       {saving === metric.id && (
-                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-lime-600 border-t-transparent rounded-full animate-spin" />
                       )}
                     </div>
                   </div>

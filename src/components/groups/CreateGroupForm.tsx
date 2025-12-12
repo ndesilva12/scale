@@ -93,7 +93,7 @@ export default function CreateGroupForm({ onSubmit, onCancel }: CreateGroupFormP
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+        <div className="p-3 bg-lime-50 dark:bg-lime-700/20 border border-lime-200 dark:border-lime-600 rounded-lg text-lime-500 dark:text-lime-400 text-sm">
           {error}
         </div>
       )}
@@ -116,7 +116,7 @@ export default function CreateGroupForm({ onSubmit, onCancel }: CreateGroupFormP
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Describe what this group is for..."
           rows={3}
-          className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
+          className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-lime-600 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
         />
       </div>
 
@@ -160,7 +160,7 @@ export default function CreateGroupForm({ onSubmit, onCancel }: CreateGroupFormP
                 <button
                   type="button"
                   onClick={() => removeMetric(metric.id)}
-                  className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                  className="p-2 text-gray-400 hover:text-lime-500 transition-colors"
                   title="Remove metric"
                 >
                   <Trash2 className="w-4 h-4" />

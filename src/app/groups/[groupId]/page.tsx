@@ -128,7 +128,7 @@ export default function GroupPage() {
   // Calculate scores when ratings or members change
   useEffect(() => {
     if (group && members.length > 0) {
-      const calculatedScores = calculateAggregatedScores(members, group.metrics, ratings);
+      const calculatedScores = calculateAggregatedScores(members, group.metrics, ratings, group.captainId);
       setScores(calculatedScores);
     }
   }, [group, members, ratings]);
@@ -342,6 +342,10 @@ export default function GroupPage() {
     await updateMember(memberId, data);
   };
 
+  const handleToggleRatingMode = async (memberId: string, mode: 'captain' | 'group') => {
+    await updateMember(memberId, { ratingMode: mode });
+  };
+
   // Get visible members for the graph
   const visibleMembers = members.filter((m) => m.visibleInGraph);
 
@@ -353,7 +357,7 @@ export default function GroupPage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+          <div className="animate-spin w-8 h-8 border-4 border-lime-600 border-t-transparent rounded-full" />
         </div>
       </div>
     );
@@ -365,7 +369,7 @@ export default function GroupPage() {
         <Header />
         <div className="flex-1 flex items-center justify-center">
           <Card className="p-8 text-center max-w-md">
-            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-lime-500" />
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               Group Not Found
             </h2>
@@ -409,7 +413,7 @@ export default function GroupPage() {
               >
                 <MoreVertical className="w-5 h-5" />
                 {claimRequests.length > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-lime-500 rounded-full" />
                 )}
               </button>
 
@@ -426,7 +430,7 @@ export default function GroupPage() {
                       >
                         <Users className="w-4 h-4" />
                         Claims
-                        <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                        <span className="ml-auto bg-lime-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                           {claimRequests.length}
                         </span>
                       </button>
@@ -500,7 +504,7 @@ export default function GroupPage() {
                 >
                   <Users className="w-4 h-4 mr-2" />
                   Claims
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-500 text-white text-xs rounded-full flex items-center justify-center">
                     {claimRequests.length}
                   </span>
                 </Button>
@@ -515,7 +519,7 @@ export default function GroupPage() {
                     <Settings className="w-4 h-4 mr-2" />
                     Metrics
                   </Button>
-                  <Button onClick={() => setShowAddMemberModal(true)}>
+                  <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
                     <UserPlus className="w-4 h-4 mr-2" />
                     Add
                   </Button>
@@ -525,142 +529,97 @@ export default function GroupPage() {
           </div>
         </div>
 
-        {/* Desktop control bar - hidden on mobile when graph view */}
-        <Card className={`p-2 sm:p-4 mb-4 sm:mb-6 ${viewMode === 'graph' ? 'hidden sm:block' : ''}`}>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-            {/* View mode buttons - full width on mobile, flex on desktop */}
-            <div className="flex w-full gap-1 sm:gap-2">
+        {/* Control bar - always visible, fills full width */}
+        <Card className="p-2 sm:p-4 mb-4 sm:mb-6">
+          <div className="flex w-full gap-1 sm:gap-2">
+            <Button
+              variant={viewMode === 'graph' ? 'primary' : 'ghost'}
+              onClick={() => setViewMode('graph')}
+              className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
+            >
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              Scale
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'primary' : 'ghost'}
+              onClick={() => setViewMode('table')}
+              className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
+            >
+              <Table className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              Data
+            </Button>
+            {canRate && (
               <Button
-                variant={viewMode === 'graph' ? 'primary' : 'ghost'}
-                onClick={() => setViewMode('graph')}
+                variant={viewMode === 'rate' ? 'primary' : 'ghost'}
+                onClick={() => setViewMode('rate')}
                 className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
               >
-                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-                Scale
+                <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+                Rate
               </Button>
-              <Button
-                variant={viewMode === 'table' ? 'primary' : 'ghost'}
-                onClick={() => setViewMode('table')}
-                className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
-              >
-                <Table className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-                Data
-              </Button>
-              {canRate && (
-                <Button
-                  variant={viewMode === 'rate' ? 'primary' : 'ghost'}
-                  onClick={() => setViewMode('rate')}
-                  className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
-                >
-                  <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-                  Rate
-                </Button>
-              )}
-            </div>
-
-            {/* Metric selectors - only show for graph view on desktop, fill remaining space */}
-            {viewMode === 'graph' && group.metrics.length > 0 && (
-              <div className="hidden sm:flex items-center gap-4 flex-1 justify-end">
-                <div className="flex items-center gap-2 flex-1 max-w-xs">
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    Y:
-                  </label>
-                  <select
-                    value={yMetricId}
-                    onChange={(e) => setYMetricId(e.target.value)}
-                    disabled={isYAxisLocked}
-                    className="flex-1 text-base px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                  >
-                    <option value="">None</option>
-                    {metricOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2 flex-1 max-w-xs">
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                    X:
-                  </label>
-                  <select
-                    value={xMetricId}
-                    onChange={(e) => setXMetricId(e.target.value)}
-                    disabled={isXAxisLocked}
-                    className="flex-1 text-base px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                  >
-                    <option value="">None</option>
-                    {metricOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
             )}
           </div>
         </Card>
 
         {/* Content */}
         {viewMode === 'graph' && (
-          <div className="flex-1 flex flex-col sm:block -mx-4 sm:mx-0">
-            {/* Mobile: tabs directly above graph */}
-            <div className="flex sm:hidden gap-1 px-2 pb-1 bg-gray-50 dark:bg-gray-900">
-              <Button
-                variant="primary"
-                onClick={() => setViewMode('graph')}
-                size="sm"
-                className="flex-1 justify-center"
-              >
-                <BarChart3 className="w-4 h-4 mr-1" />
-                Scale
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setViewMode('table')}
-                size="sm"
-                className="flex-1 justify-center"
-              >
-                <Table className="w-4 h-4 mr-1" />
-                Data
-              </Button>
-              {canRate && (
-                <Button
-                  variant="ghost"
-                  onClick={() => setViewMode('rate')}
-                  size="sm"
-                  className="flex-1 justify-center"
-                >
-                  <SlidersHorizontal className="w-4 h-4 mr-1" />
-                  Rate
-                </Button>
-              )}
-            </div>
+          <div className="flex-1 flex flex-col -mx-4 sm:mx-0">
+            {/* Desktop: axis selectors above graph, aligned right */}
+            {group.metrics.length > 0 && (
+              <div className="hidden sm:flex items-center justify-end gap-4 mb-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Y:</label>
+                  <select
+                    value={yMetricId}
+                    onChange={(e) => setYMetricId(e.target.value)}
+                    disabled={isYAxisLocked}
+                    className="text-sm px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-lime-500 disabled:opacity-50"
+                  >
+                    <option value="">None</option>
+                    {metricOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">X:</label>
+                  <select
+                    value={xMetricId}
+                    onChange={(e) => setXMetricId(e.target.value)}
+                    disabled={isXAxisLocked}
+                    className="text-sm px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-lime-500 disabled:opacity-50"
+                  >
+                    <option value="">None</option>
+                    {metricOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
 
             <Card className="flex-1 flex flex-col p-0 sm:p-6 rounded-none sm:rounded-xl overflow-hidden">
               {/* Graph Title - hidden on mobile since axis labels are inline */}
-              <h2 className="hidden sm:block text-center text-3xl md:text-4xl font-extrabold mb-4">
+              <h2 className="hidden sm:block text-center text-3xl md:text-4xl font-extrabold mb-4 text-gray-800 dark:text-white">
                 {yMetricId && xMetricId ? (
                   // Both axes selected
                   <>
-                    <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 dark:from-blue-400 dark:via-blue-300 dark:to-cyan-400 bg-clip-text text-transparent">
+                    <span>
                       {group.metrics.find((m) => m.id === yMetricId)?.name}
                     </span>
-                    <span className="mx-3 text-gray-300 dark:text-gray-600 font-normal">×</span>
-                    <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-400 dark:via-emerald-300 dark:to-teal-400 bg-clip-text text-transparent">
+                    <span className="mx-3 text-gray-400 dark:text-gray-500 font-normal">×</span>
+                    <span>
                       {group.metrics.find((m) => m.id === xMetricId)?.name}
                     </span>
                   </>
                 ) : yMetricId ? (
                   // Only Y axis selected
-                  <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 dark:from-blue-400 dark:via-blue-300 dark:to-cyan-400 bg-clip-text text-transparent">
+                  <span>
                     {group.metrics.find((m) => m.id === yMetricId)?.name}
                   </span>
                 ) : xMetricId ? (
                   // Only X axis selected
-                  <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-400 dark:via-emerald-300 dark:to-teal-400 bg-clip-text text-transparent">
+                  <span>
                     {group.metrics.find((m) => m.id === xMetricId)?.name}
                   </span>
                 ) : (
@@ -750,6 +709,7 @@ export default function GroupPage() {
               onSendClaimInvite={handleSendClaimInvite}
               onToggleDisplayMode={handleToggleDisplayMode}
               onUpdateCustomDisplay={handleUpdateCustomDisplay}
+              onToggleRatingMode={handleToggleRatingMode}
             />
           </Card>
         )}
@@ -779,7 +739,7 @@ export default function GroupPage() {
                 : 'The group captain hasn\'t added any items yet.'}
             </p>
             {isCaptain && (
-              <Button onClick={() => setShowAddMemberModal(true)}>
+              <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
                 Add First Item
               </Button>
@@ -936,7 +896,7 @@ export default function GroupPage() {
                   {/* Delete button */}
                   <button
                     onClick={() => handleDeleteMetric(index)}
-                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg order-3"
+                    className="p-2 text-lime-500 hover:bg-lime-50 dark:hover:bg-lime-700/20 rounded-lg order-3"
                     title="Remove metric"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -965,17 +925,17 @@ export default function GroupPage() {
 
           {/* Default Axis Selection */}
           {editingMetrics.length > 0 && (
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-3">Default Graph Axes</p>
+            <div className="mt-4 p-3 bg-lime-50 dark:bg-lime-700/20 border border-lime-200 dark:border-lime-700 rounded-lg">
+              <p className="text-sm font-medium text-lime-700 dark:text-lime-200 mb-3">Default Graph Axes</p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">
+                  <label className="block text-xs font-medium text-lime-500 dark:text-lime-300 mb-1">
                     Default Y-Axis
                   </label>
                   <select
                     value={editingDefaultYMetricId ?? ''}
                     onChange={(e) => setEditingDefaultYMetricId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-900"
+                    className="w-full px-3 py-2 text-sm border border-lime-300 dark:border-lime-500 rounded-lg bg-white dark:bg-gray-900"
                   >
                     <option value="">None</option>
                     {editingMetrics.map((m) => (
@@ -984,13 +944,13 @@ export default function GroupPage() {
                   </select>
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">
+                  <label className="block text-xs font-medium text-lime-500 dark:text-lime-300 mb-1">
                     Default X-Axis
                   </label>
                   <select
                     value={editingDefaultXMetricId ?? ''}
                     onChange={(e) => setEditingDefaultXMetricId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-900"
+                    className="w-full px-3 py-2 text-sm border border-lime-300 dark:border-lime-500 rounded-lg bg-white dark:bg-gray-900"
                   >
                     <option value="">None</option>
                     {editingMetrics.map((m) => (
@@ -999,7 +959,7 @@ export default function GroupPage() {
                   </select>
                 </div>
               </div>
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+              <p className="text-xs text-lime-600 dark:text-lime-400 mt-2">
                 These will be the initial axes shown when viewing the graph. Users can still change them.
               </p>
             </div>
@@ -1010,7 +970,7 @@ export default function GroupPage() {
           <Button variant="outline" onClick={() => setShowMetricsModal(false)} className="flex-1">
             Cancel
           </Button>
-          <Button onClick={handleSaveMetrics} className="flex-1">
+          <Button variant="secondary" onClick={handleSaveMetrics} className="flex-1">
             Save Metrics
           </Button>
         </div>
@@ -1040,7 +1000,7 @@ export default function GroupPage() {
               onChange={(e) => setEditingGroupDescription(e.target.value)}
               placeholder="Describe what this group is for..."
               rows={3}
-              className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-lime-600 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
           </div>
 
@@ -1060,7 +1020,7 @@ export default function GroupPage() {
                 onClick={() => setEditingCaptainControlEnabled(!editingCaptainControlEnabled)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   editingCaptainControlEnabled
-                    ? 'bg-blue-600'
+                    ? 'bg-lime-600'
                     : 'bg-gray-300 dark:bg-gray-600'
                 }`}
               >
@@ -1078,7 +1038,7 @@ export default function GroupPage() {
           <Button variant="outline" onClick={() => setShowGroupSettingsModal(false)} className="flex-1">
             Cancel
           </Button>
-          <Button onClick={handleSaveGroupSettings} loading={savingGroupSettings} className="flex-1">
+          <Button variant="secondary" onClick={handleSaveGroupSettings} loading={savingGroupSettings} className="flex-1">
             Save Settings
           </Button>
         </div>

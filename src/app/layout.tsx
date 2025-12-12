@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     siteName: "Scale",
     images: [
       {
-        url: "/scaleblack.png",
+        url: "/scalegreen1.png",
         width: 1200,
         height: 630,
         alt: "Scale Logo",
@@ -55,14 +55,14 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Scale - Visual Group Ratings",
     description: "A visual tool for plotting and rating group items on customizable metrics",
-    images: ["/scaleblack.png"],
+    images: ["/scalegreen1.png"],
   },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#111827" },
+    { media: "(prefers-color-scheme: light)", color: "#7bb400" },
+    { media: "(prefers-color-scheme: dark)", color: "#5a8600" },
   ],
   width: "device-width",
   initialScale: 1,

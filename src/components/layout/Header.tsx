@@ -18,11 +18,11 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="/scale.png"
+              src="/scalegreen.png"
               alt="Scale"
-              width={120}
-              height={32}
-              className="h-8 w-auto"
+              width={225}
+              height={60}
+              className="h-[60px] w-auto"
               priority
             />
           </Link>
@@ -51,7 +51,7 @@ export default function Header() {
                 <Button variant="outline">Sign In</Button>
               </Link>
               <Link href="/sign-up">
-                <Button>Get Started</Button>
+                <Button variant="secondary">Get Started</Button>
               </Link>
             </SignedOut>
           </nav>
@@ -106,7 +106,7 @@ export default function Header() {
                 className="block"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <Button className="w-full">Get Started</Button>
+                <Button variant="secondary" className="w-full">Get Started</Button>
               </Link>
             </SignedOut>
           </div>

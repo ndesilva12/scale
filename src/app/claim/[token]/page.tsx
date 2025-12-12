@@ -119,7 +119,7 @@ export default function ClaimPage({ params }: ClaimPageProps) {
       <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
         <Header />
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-lime-600" />
         </div>
       </div>
     );
@@ -131,8 +131,8 @@ export default function ClaimPage({ params }: ClaimPageProps) {
         <Header />
         <main className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-md w-full p-8 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
-              <AlertCircle className="w-8 h-8 text-red-600" />
+            <div className="w-16 h-16 mx-auto mb-4 bg-lime-100 dark:bg-lime-700/20 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-lime-500" />
             </div>
             <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               Unable to Process Claim
@@ -175,7 +175,7 @@ export default function ClaimPage({ params }: ClaimPageProps) {
         <Header />
         <main className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-md w-full p-8 text-center">
-            <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+            <Loader2 className="w-12 h-12 animate-spin text-lime-600 mx-auto mb-4" />
             <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               Claiming Your Profile
             </h1>
@@ -194,8 +194,8 @@ export default function ClaimPage({ params }: ClaimPageProps) {
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8">
           <div className="text-center mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
-              <UserPlus className="w-8 h-8 text-blue-600" />
+            <div className="w-16 h-16 mx-auto mb-4 bg-lime-100 dark:bg-lime-700/20 rounded-full flex items-center justify-center">
+              <UserPlus className="w-8 h-8 text-lime-600" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
               Claim Your Profile
@@ -238,7 +238,7 @@ export default function ClaimPage({ params }: ClaimPageProps) {
               Already have an account?{' '}
               <a
                 href={`/sign-in?redirect_url=/claim/${resolvedParams.token}`}
-                className="text-blue-600 hover:underline"
+                className="text-lime-600 hover:underline"
               >
                 Sign in
               </a>

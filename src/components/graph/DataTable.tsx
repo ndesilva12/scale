@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { Eye, EyeOff, Anchor, Pencil, Check, X, Camera, Trash2, Link2, Mail, User, Settings } from 'lucide-react';
-import { GroupMember, Metric, AggregatedScore, Rating, MemberDisplayMode, getMemberDisplayName, getMemberDisplayImage } from '@/types';
+import { Eye, EyeOff, Anchor, Pencil, Check, X, Camera, Trash2, Link2, Mail, User, Settings, Users } from 'lucide-react';
+import { GroupMember, Metric, AggregatedScore, Rating, MemberDisplayMode, MemberRatingMode, getMemberDisplayName, getMemberDisplayImage } from '@/types';
 import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
 
@@ -29,6 +29,7 @@ interface DataTableProps {
   onSendClaimInvite?: (memberId: string, email: string) => Promise<void>;
   onToggleDisplayMode?: (memberId: string, mode: MemberDisplayMode) => Promise<void>;
   onUpdateCustomDisplay?: (memberId: string, data: { customName?: string; customImageUrl?: string }) => Promise<void>;
+  onToggleRatingMode?: (memberId: string, mode: MemberRatingMode) => Promise<void>;
 }
 
 export default function DataTable({
@@ -53,6 +54,7 @@ export default function DataTable({
   onSendClaimInvite,
   onToggleDisplayMode,
   onUpdateCustomDisplay,
+  onToggleRatingMode,
 }: DataTableProps) {
   const [editingCell, setEditingCell] = useState<{ memberId: string; metricId: string } | null>(null);
   const [editValue, setEditValue] = useState<number>(50);
@@ -99,9 +101,9 @@ export default function DataTable({
 
   const getScoreColor = (value: number) => {
     if (value >= 75) return 'text-green-600 dark:text-green-400';
-    if (value >= 50) return 'text-blue-600 dark:text-blue-400';
+    if (value >= 50) return 'text-lime-600 dark:text-lime-400';
     if (value >= 25) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
+    return 'text-lime-500 dark:text-lime-400';
   };
 
   const handleStartEdit = (memberId: string, metricId: string) => {
@@ -357,7 +359,7 @@ export default function DataTable({
                       <div className="relative group">
                         <Link
                           href={`/groups/${groupId}/members/${member.id}`}
-                          className="flex items-center hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          className="flex items-center hover:text-lime-600 dark:hover:text-lime-400 transition-colors"
                           onClick={(e) => {
                             if (onMemberClick) {
                               e.preventDefault();
@@ -380,7 +382,7 @@ export default function DataTable({
                                 fileInputRef.current.click();
                               }
                             }}
-                            className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute -bottom-1 -right-1 w-5 h-5 bg-lime-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Upload image"
                           >
                             {uploadingImage === member.id ? (
@@ -397,7 +399,7 @@ export default function DataTable({
                           onClick={() => onToggleVisibility?.(member.id, !member.visibleInGraph)}
                           className={`sm:hidden p-1 rounded transition-colors ${
                             member.visibleInGraph
-                              ? 'text-blue-600 dark:text-blue-400'
+                              ? 'text-lime-600 dark:text-lime-400'
                               : 'text-gray-400'
                           }`}
                           title={member.visibleInGraph ? 'Hide from graph' : 'Show in graph'}
@@ -412,7 +414,7 @@ export default function DataTable({
                     </div>
                     <Link
                       href={`/groups/${groupId}/members/${member.id}`}
-                      className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex-1 min-w-0"
+                      className="hover:text-lime-600 dark:hover:text-lime-400 transition-colors flex-1 min-w-0"
                       onClick={(e) => {
                         if (onMemberClick) {
                           e.preventDefault();
@@ -426,11 +428,11 @@ export default function DataTable({
                           {/* Icons hidden on mobile */}
                           {member.isCaptain && (
                             <span title="Group Captain" className="hidden sm:inline">
-                              <Anchor className="w-3.5 h-3.5 text-blue-500" />
+                              <Anchor className="w-3.5 h-3.5 text-lime-600" />
                             </span>
                           )}
                           {member.displayMode === 'custom' && (
-                            <span title="Custom display" className="hidden sm:inline text-xs text-purple-500">
+                            <span title="Custom display" className="hidden sm:inline text-xs text-lime-500">
                               <Pencil className="w-3 h-3" />
                             </span>
                           )}
@@ -467,14 +469,14 @@ export default function DataTable({
                           max={metric.maxValue}
                           value={editValue}
                           onChange={(e) => handleSliderChange(Number(e.target.value))}
-                          className="w-full h-2 accent-blue-500"
+                          className="w-full h-2 accent-lime-600"
                         />
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
                             {metric.prefix}{editValue}{metric.suffix}
                           </span>
                           {saving && (
-                            <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                            <div className="w-3 h-3 border-2 border-lime-600 border-t-transparent rounded-full animate-spin" />
                           )}
                           <button
                             onClick={handleCancelEdit}
@@ -496,7 +498,7 @@ export default function DataTable({
                           {count} rating{count !== 1 ? 's' : ''}
                         </div>
                         {userRating !== null && (
-                          <div className="text-xs text-blue-500 dark:text-blue-400 mt-1">
+                          <div className="text-xs text-lime-600 dark:text-lime-400 mt-1">
                             Your: {metric.prefix}{userRating}{metric.suffix}
                           </div>
                         )}
@@ -542,7 +544,7 @@ export default function DataTable({
                         }}
                         className={`flex-1 px-2 py-1 text-xs rounded ${
                           member.displayMode === 'user'
-                            ? 'bg-blue-500 text-white'
+                            ? 'bg-lime-600 text-white'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                         }`}
                       >
@@ -555,7 +557,7 @@ export default function DataTable({
                         }}
                         className={`flex-1 px-2 py-1 text-xs rounded ${
                           member.displayMode === 'custom'
-                            ? 'bg-blue-500 text-white'
+                            ? 'bg-lime-600 text-white'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                         }`}
                       >
@@ -627,7 +629,7 @@ export default function DataTable({
                                 e.stopPropagation();
                                 onUpdateCustomDisplay?.(member.id, { customImageUrl: '' });
                               }}
-                              className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                              className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-700/20 rounded"
                               title="Remove custom image"
                             >
                               <X className="w-3 h-3" />
@@ -636,6 +638,46 @@ export default function DataTable({
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Rating mode toggle for all non-captain members */}
+                {canEditCustomDisplay(member) && onToggleRatingMode && (
+                  <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Rating Source</p>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => {
+                          onToggleRatingMode(member.id, 'captain');
+                        }}
+                        className={`flex-1 px-2 py-1 text-xs rounded ${
+                          member.ratingMode === 'captain'
+                            ? 'bg-lime-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                        }`}
+                      >
+                        <Anchor className="w-3 h-3 inline mr-1" />
+                        Captain Only
+                      </button>
+                      <button
+                        onClick={() => {
+                          onToggleRatingMode(member.id, 'group');
+                        }}
+                        className={`flex-1 px-2 py-1 text-xs rounded ${
+                          member.ratingMode === 'group'
+                            ? 'bg-lime-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                        }`}
+                      >
+                        <Users className="w-3 h-3 inline mr-1" />
+                        Group Average
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+                      {member.ratingMode === 'captain'
+                        ? "Only your rating counts for this item"
+                        : "Average of all group ratings"}
+                    </p>
                   </div>
                 )}
 
@@ -673,7 +715,7 @@ export default function DataTable({
                               setDropdownPosition(null);
                             }
                           }}
-                          className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                          className="p-1 bg-lime-600 text-white rounded hover:bg-lime-600"
                           disabled={!inviteEmail}
                         >
                           <Mail className="w-3 h-3" />
@@ -691,7 +733,7 @@ export default function DataTable({
                       setShowMemberActions(null);
                       setDropdownPosition(null);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-500 hover:bg-red-50 dark:hover:bg-red-700/20 rounded"
                   >
                     <Trash2 className="w-4 h-4" />
                     Remove Item

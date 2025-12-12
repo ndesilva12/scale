@@ -19,7 +19,7 @@ const Slider = forwardRef<HTMLInputElement, SliderProps>(
               </label>
             )}
             {showValue && (
-              <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+              <span className="text-sm font-semibold text-lime-600 dark:text-lime-400">
                 {value}
               </span>
             )}
@@ -37,14 +37,14 @@ const Slider = forwardRef<HTMLInputElement, SliderProps>(
             [&::-webkit-slider-thumb]:appearance-none
             [&::-webkit-slider-thumb]:w-4
             [&::-webkit-slider-thumb]:h-4
-            [&::-webkit-slider-thumb]:bg-blue-600
+            [&::-webkit-slider-thumb]:bg-lime-600
             [&::-webkit-slider-thumb]:rounded-full
             [&::-webkit-slider-thumb]:cursor-pointer
             [&::-webkit-slider-thumb]:transition-transform
             [&::-webkit-slider-thumb]:hover:scale-110
             [&::-moz-range-thumb]:w-4
             [&::-moz-range-thumb]:h-4
-            [&::-moz-range-thumb]:bg-blue-600
+            [&::-moz-range-thumb]:bg-lime-600
             [&::-moz-range-thumb]:rounded-full
             [&::-moz-range-thumb]:cursor-pointer
             [&::-moz-range-thumb]:border-0

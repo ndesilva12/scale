@@ -14,7 +14,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
             Map Group{' '}
-            <span className="bg-gradient-to-r from-blue-600 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-lime-600 via-lime-500 to-lime-500 bg-clip-text text-transparent">
               Opinions
             </span>
           </h1>
@@ -26,7 +26,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <SignedOut>
               <Link href="/sign-up">
-                <Button size="lg" className="w-full sm:w-auto">
+                <Button size="lg" variant="secondary" className="w-full sm:w-auto">
                   Get Started Free
                 </Button>
               </Link>
@@ -38,7 +38,7 @@ export default function Home() {
             </SignedOut>
             <SignedIn>
               <Link href="/dashboard">
-                <Button size="lg" className="w-full sm:w-auto">
+                <Button size="lg" variant="secondary" className="w-full sm:w-auto">
                   Go to Dashboard
                 </Button>
               </Link>
@@ -56,8 +56,8 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="text-center">
-              <div className="w-14 h-14 mx-auto mb-4 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                <Users className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+              <div className="w-14 h-14 mx-auto mb-4 bg-lime-100 dark:bg-lime-700/30 rounded-xl flex items-center justify-center">
+                <Users className="w-7 h-7 text-lime-600 dark:text-lime-400" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Create Groups
@@ -68,8 +68,8 @@ export default function Home() {
             </div>
 
             <div className="text-center">
-              <div className="w-14 h-14 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                <BarChart3 className="w-7 h-7 text-purple-600 dark:text-purple-400" />
+              <div className="w-14 h-14 mx-auto mb-4 bg-lime-100 dark:bg-lime-700/30 rounded-xl flex items-center justify-center">
+                <BarChart3 className="w-7 h-7 text-lime-500 dark:text-lime-400" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Define Metrics
@@ -117,12 +117,12 @@ export default function Home() {
           </p>
           <SignedOut>
             <Link href="/sign-up">
-              <Button size="lg">Create Your First Group</Button>
+              <Button size="lg" variant="secondary">Create Your First Group</Button>
             </Link>
           </SignedOut>
           <SignedIn>
             <Link href="/dashboard">
-              <Button size="lg">Go to Dashboard</Button>
+              <Button size="lg" variant="secondary">Go to Dashboard</Button>
             </Link>
           </SignedIn>
         </div>
@@ -131,7 +131,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="py-8 border-t border-gray-200 dark:border-gray-800">
         <div className="max-w-6xl mx-auto px-4 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>&copy; {new Date().getFullYear()} Loyalty. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Scale. All rights reserved.</p>
         </div>
       </footer>
     </div>

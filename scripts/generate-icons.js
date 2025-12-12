@@ -4,9 +4,9 @@ const path = require('path');
 
 const sizes = [72, 96, 128, 144, 152, 180, 192, 384, 512];
 const iconsDir = path.join(__dirname, '../public/icons');
-const sourceImage = path.join(__dirname, '../public/scale1.png');
+const sourceImage = path.join(__dirname, '../public/scalegreen1.png');
 
-// Generate icon from scale1.png source
+// Generate icon from scalegreen1.png source
 async function generateIcon(size, filename) {
   await sharp(sourceImage)
     .resize(size, size, {
@@ -27,7 +27,7 @@ async function main() {
 
   // Check if source image exists
   if (!fs.existsSync(sourceImage)) {
-    console.error('Source image scale1.png not found in public folder!');
+    console.error('Source image scalegreen1.png not found in public folder!');
     process.exit(1);
   }
 
@@ -47,7 +47,7 @@ async function main() {
   fs.copyFileSync(sourceImage, path.join(iconsDir, 'icon-original.png'));
   console.log('Copied icon-original.png');
 
-  console.log('All icons generated successfully from scale1.png!');
+  console.log('All icons generated successfully from scalegreen1.png!');
 }
 
 main().catch(console.error);

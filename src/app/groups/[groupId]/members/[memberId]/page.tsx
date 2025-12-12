@@ -55,7 +55,8 @@ export default function MemberProfilePage() {
         const calculatedScores = calculateAggregatedScores(
           membersData,
           groupData.metrics,
-          ratingsData
+          ratingsData,
+          groupData.captainId
         );
         // Filter to just this member's scores
         setScores(calculatedScores.filter((s) => s.memberId === memberId));
@@ -94,7 +95,7 @@ export default function MemberProfilePage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+          <div className="animate-spin w-8 h-8 border-4 border-lime-600 border-t-transparent rounded-full" />
         </div>
       </div>
     );
@@ -106,7 +107,7 @@ export default function MemberProfilePage() {
         <Header />
         <div className="flex-1 flex items-center justify-center">
           <Card className="p-8 text-center max-w-md">
-            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-lime-500" />
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               Member Not Found
             </h2>
@@ -134,16 +135,16 @@ export default function MemberProfilePage() {
 
   const getScoreColor = (value: number) => {
     if (value >= 75) return 'text-green-600 dark:text-green-400';
-    if (value >= 50) return 'text-blue-600 dark:text-blue-400';
+    if (value >= 50) return 'text-lime-600 dark:text-lime-400';
     if (value >= 25) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
+    return 'text-lime-500 dark:text-lime-400';
   };
 
   const getScoreBgColor = (value: number) => {
     if (value >= 75) return 'bg-green-100 dark:bg-green-900/30';
-    if (value >= 50) return 'bg-blue-100 dark:bg-blue-900/30';
+    if (value >= 50) return 'bg-lime-100 dark:bg-lime-700/30';
     if (value >= 25) return 'bg-yellow-100 dark:bg-yellow-900/30';
-    return 'bg-red-100 dark:bg-red-900/30';
+    return 'bg-lime-100 dark:bg-lime-700/30';
   };
 
   return (
@@ -227,7 +228,7 @@ export default function MemberProfilePage() {
                   Claim This Item
                 </Button>
                 {claimError && (
-                  <p className="text-sm text-red-500">{claimError}</p>
+                  <p className="text-sm text-lime-500">{claimError}</p>
                 )}
               </div>
             )}

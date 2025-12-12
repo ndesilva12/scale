@@ -94,7 +94,7 @@ export default function JoinGroupPage() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+          <div className="animate-spin w-8 h-8 border-4 border-lime-600 border-t-transparent rounded-full" />
         </div>
       </div>
     );
@@ -106,7 +106,7 @@ export default function JoinGroupPage() {
         <Header />
         <div className="flex-1 flex items-center justify-center p-4">
           <Card className="p-8 text-center max-w-md">
-            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-lime-500" />
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
               Group Not Found
             </h2>
@@ -133,7 +133,7 @@ export default function JoinGroupPage() {
         <Card className="p-8 max-w-md w-full">
           {/* Group Header */}
           <div className="text-center mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-lime-600 to-lime-500 rounded-xl flex items-center justify-center shadow-lg">
               <Users className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
@@ -164,7 +164,7 @@ export default function JoinGroupPage() {
 
           {/* Action Section */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-lime-50 dark:bg-lime-700/20 border border-lime-200 dark:border-lime-600 rounded-lg text-lime-500 dark:text-lime-400 text-sm">
               {error}
             </div>
           )}
@@ -227,7 +227,7 @@ export default function JoinGroupPage() {
 
           {status === 'joining' && (
             <div className="text-center">
-              <Loader2 className="w-8 h-8 mx-auto mb-3 text-blue-500 animate-spin" />
+              <Loader2 className="w-8 h-8 mx-auto mb-3 text-lime-600 animate-spin" />
               <p className="text-gray-600 dark:text-gray-400">
                 Sending join request...
               </p>
