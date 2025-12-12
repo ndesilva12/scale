@@ -44,18 +44,18 @@ export const metadata: Metadata = {
     siteName: "Scale",
     images: [
       {
-        url: "/scale1.png",
-        width: 512,
-        height: 512,
+        url: "/scaleblack.png",
+        width: 1200,
+        height: 630,
         alt: "Scale Logo",
       },
     ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Scale - Visual Group Ratings",
     description: "A visual tool for plotting and rating group items on customizable metrics",
-    images: ["/scale1.png"],
+    images: ["/scaleblack.png"],
   },
 };
 
