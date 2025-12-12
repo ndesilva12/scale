@@ -267,7 +267,7 @@ export default function MemberGraph({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full min-h-[400px] bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700"
+      className="relative w-full h-full min-h-[400px] bg-gray-50 dark:bg-gray-800/50 rounded-none sm:rounded-xl border-x-0 sm:border-x border-y border-gray-200 dark:border-gray-700"
     >
       {/* Y-axis label - hidden on mobile, shown on larger screens */}
       <div className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 md:pr-4">
@@ -323,12 +323,8 @@ export default function MemberGraph({
         ))}
       </svg>
 
-      {/* Y-axis scale with inline label on mobile */}
+      {/* Y-axis scale - numbers only, properly positioned */}
       <div className="absolute left-1 md:left-2 top-0 bottom-0 flex flex-col justify-between py-2 text-xs text-gray-500 dark:text-gray-400">
-        {/* Mobile Y-axis label inline */}
-        <span className={`md:hidden text-[10px] font-semibold truncate max-w-[3rem] ${yMetricId ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
-          {yMetric?.name || (yMetricId ? 'Y' : '-')}
-        </span>
         {yMetricId && (() => {
           const min = yMetric?.minValue ?? 0;
           const max = yMetric?.maxValue ?? 100;
@@ -351,9 +347,22 @@ export default function MemberGraph({
             <span key={pct} className="hidden md:block">{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
           ));
         })()}
+        {/* Show dashes when no Y metric */}
+        {!yMetricId && (
+          <>
+            <span className="md:hidden">-</span>
+            <span className="md:hidden">-</span>
+            <span className="md:hidden">-</span>
+            <span className="hidden md:block">-</span>
+            <span className="hidden md:block">-</span>
+            <span className="hidden md:block">-</span>
+            <span className="hidden md:block">-</span>
+            <span className="hidden md:block">-</span>
+          </>
+        )}
       </div>
 
-      {/* X-axis scale with inline label on mobile */}
+      {/* X-axis scale - numbers only, properly positioned */}
       <div className="absolute left-0 right-0 bottom-1 md:bottom-2 flex justify-between items-center px-2 text-xs text-gray-500 dark:text-gray-400">
         {xMetricId && (() => {
           const min = xMetric?.minValue ?? 0;
@@ -377,10 +386,19 @@ export default function MemberGraph({
             <span key={pct} className="hidden md:block">{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
           ));
         })()}
-        {/* Mobile X-axis label inline */}
-        <span className={`md:hidden text-[10px] font-semibold truncate max-w-[3rem] ${xMetricId ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
-          {xMetric?.name || (xMetricId ? 'X' : '-')}
-        </span>
+        {/* Show dashes when no X metric */}
+        {!xMetricId && (
+          <>
+            <span className="md:hidden">-</span>
+            <span className="md:hidden">-</span>
+            <span className="md:hidden">-</span>
+            <span className="hidden md:block">-</span>
+            <span className="hidden md:block">-</span>
+            <span className="hidden md:block">-</span>
+            <span className="hidden md:block">-</span>
+            <span className="hidden md:block">-</span>
+          </>
+        )}
       </div>
 
       {/* Plotted members */}

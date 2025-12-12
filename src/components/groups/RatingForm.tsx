@@ -14,6 +14,7 @@ interface RatingFormProps {
   currentUserId: string;
   existingRatings: Rating[];
   onSubmitRating: (metricId: string, targetMemberId: string, value: number) => Promise<void>;
+  isCaptain?: boolean;
 }
 
 export default function RatingForm({
@@ -22,15 +23,18 @@ export default function RatingForm({
   currentUserId,
   existingRatings,
   onSubmitRating,
+  isCaptain = false,
 }: RatingFormProps) {
   const [selectedMember, setSelectedMember] = useState<GroupMember | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
 
-  // Filter to only active members (accepted or placeholder with the current user's clerk ID)
+  // Filter to only active members (accepted or placeholder)
+  // If not captain, also exclude members with ratingMode === 'captain' (captain-only input)
   const activeMembers = members.filter(
-    (m) => m.status === 'accepted' || m.status === 'placeholder'
+    (m) => (m.status === 'accepted' || m.status === 'placeholder') &&
+      (isCaptain || m.ratingMode !== 'captain')
   );
 
   // Get current user's member record
