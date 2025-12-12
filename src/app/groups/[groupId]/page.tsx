@@ -645,9 +645,9 @@ export default function GroupPage() {
                 </div>
               </div>
 
-              {/* Mobile: axis selectors at bottom of graph card */}
+              {/* Mobile: axis selectors at bottom of graph card - attached to graph */}
               {group.metrics.length > 0 && (
-                <div className="sm:hidden flex items-center justify-center gap-4 py-2 px-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                <div className="sm:hidden flex items-center justify-center gap-4 py-1.5 px-3 bg-gray-100 dark:bg-gray-800 border-b border-x-0 border-gray-200 dark:border-gray-700">
                   <div className="flex items-center gap-1.5">
                     <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Y:</label>
                     <select
