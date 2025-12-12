@@ -103,7 +103,7 @@ export default function DataTable({
     if (value >= 75) return 'text-green-600 dark:text-green-400';
     if (value >= 50) return 'text-lime-600 dark:text-lime-400';
     if (value >= 25) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-lime-500 dark:text-lime-400';
+    return 'text-red-500 dark:text-red-400';
   };
 
   const handleStartEdit = (memberId: string, metricId: string) => {

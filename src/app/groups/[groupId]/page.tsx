@@ -7,6 +7,7 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   ChevronLeft,
+  ChevronDown,
   UserPlus,
   BarChart3,
   Table,
@@ -81,6 +82,20 @@ export default function GroupPage() {
   // Graph state
   const [xMetricId, setXMetricId] = useState<string>('');
   const [yMetricId, setYMetricId] = useState<string>('');
+  const [showYAxisDropdown, setShowYAxisDropdown] = useState(false);
+  const [showXAxisDropdown, setShowXAxisDropdown] = useState(false);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowYAxisDropdown(false);
+      setShowXAxisDropdown(false);
+    };
+    if (showYAxisDropdown || showXAxisDropdown) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showYAxisDropdown, showXAxisDropdown]);
 
   // Use captainId with backward compatibility for creatorId
   const isCaptain = group?.captainId === user?.id;
@@ -529,161 +544,153 @@ export default function GroupPage() {
           </div>
         </div>
 
-        {/* Control bar - always visible, fills full width */}
-        <Card className="p-2 sm:p-4 mb-4 sm:mb-6">
-          <div className="flex w-full gap-1 sm:gap-2">
-            <Button
-              variant={viewMode === 'graph' ? 'primary' : 'ghost'}
+        {/* Graph Title with Y/X Dropdown Selectors - shown when in graph mode */}
+        {viewMode === 'graph' && group.metrics.length > 0 && (
+          <div className="text-center mb-2 sm:mb-3">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-800 dark:text-white inline-flex items-center justify-center flex-wrap gap-x-2">
+              {/* Y Axis Selector */}
+              <div className="relative inline-block">
+                <button
+                  onClick={() => {
+                    setShowYAxisDropdown(!showYAxisDropdown);
+                    setShowXAxisDropdown(false);
+                  }}
+                  disabled={isYAxisLocked}
+                  className={`inline-flex items-center gap-1 hover:opacity-80 transition-opacity disabled:opacity-50 ${
+                    yMetricId ? 'underline decoration-2 underline-offset-4 decoration-lime-500' : ''
+                  }`}
+                >
+                  <span>{yMetricId ? group.metrics.find((m) => m.id === yMetricId)?.name : 'Y Axis'}</span>
+                  <ChevronDown className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${showYAxisDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                {showYAxisDropdown && (
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1">
+                    <button
+                      onClick={() => { setYMetricId(''); setShowYAxisDropdown(false); }}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${!yMetricId ? 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300' : 'text-gray-700 dark:text-gray-300'}`}
+                    >
+                      None
+                    </button>
+                    {metricOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => { setYMetricId(opt.value); setShowYAxisDropdown(false); }}
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${yMetricId === opt.value ? 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300' : 'text-gray-700 dark:text-gray-300'}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <span className="text-gray-400 dark:text-gray-500 font-normal mx-1 sm:mx-2">×</span>
+
+              {/* X Axis Selector */}
+              <div className="relative inline-block">
+                <button
+                  onClick={() => {
+                    setShowXAxisDropdown(!showXAxisDropdown);
+                    setShowYAxisDropdown(false);
+                  }}
+                  disabled={isXAxisLocked}
+                  className={`inline-flex items-center gap-1 hover:opacity-80 transition-opacity disabled:opacity-50 ${
+                    xMetricId ? 'underline decoration-2 underline-offset-4 decoration-lime-500' : ''
+                  }`}
+                >
+                  <span>{xMetricId ? group.metrics.find((m) => m.id === xMetricId)?.name : 'X Axis'}</span>
+                  <ChevronDown className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${showXAxisDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                {showXAxisDropdown && (
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1">
+                    <button
+                      onClick={() => { setXMetricId(''); setShowXAxisDropdown(false); }}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${!xMetricId ? 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300' : 'text-gray-700 dark:text-gray-300'}`}
+                    >
+                      None
+                    </button>
+                    {metricOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => { setXMetricId(opt.value); setShowXAxisDropdown(false); }}
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${xMetricId === opt.value ? 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300' : 'text-gray-700 dark:text-gray-300'}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </h2>
+          </div>
+        )}
+
+        {/* Control bar tabs - attached to content below */}
+        <div className="bg-white dark:bg-gray-900 rounded-t-xl sm:rounded-t-xl border-x border-t border-gray-200 dark:border-gray-700 -mx-4 sm:mx-0">
+          <div className="flex w-full">
+            <button
               onClick={() => setViewMode('graph')}
-              className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors ${
+                viewMode === 'graph'
+                  ? 'bg-lime-500 text-green-950'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
             >
-              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
               Scale
-            </Button>
-            <Button
-              variant={viewMode === 'table' ? 'primary' : 'ghost'}
+            </button>
+            <button
               onClick={() => setViewMode('table')}
-              className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors ${
+                viewMode === 'table'
+                  ? 'bg-lime-500 text-green-950'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
             >
-              <Table className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              <Table className="w-4 h-4 sm:w-5 sm:h-5" />
               Data
-            </Button>
+            </button>
             {canRate && (
-              <Button
-                variant={viewMode === 'rate' ? 'primary' : 'ghost'}
+              <button
                 onClick={() => setViewMode('rate')}
-                className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
+                className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors ${
+                  viewMode === 'rate'
+                    ? 'bg-lime-500 text-green-950'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
               >
-                <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+                <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
                 Rate
-              </Button>
+              </button>
             )}
           </div>
-        </Card>
+        </div>
 
-        {/* Content */}
+        {/* Content - attached to tabs above */}
         {viewMode === 'graph' && (
-          <div className="flex-1 flex flex-col -mx-4 sm:mx-0">
-            {/* Desktop: axis selectors above graph, aligned right */}
-            {group.metrics.length > 0 && (
-              <div className="hidden sm:flex items-center justify-end gap-4 mb-2">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Y:</label>
-                  <select
-                    value={yMetricId}
-                    onChange={(e) => setYMetricId(e.target.value)}
-                    disabled={isYAxisLocked}
-                    className="text-sm px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-lime-500 disabled:opacity-50"
-                  >
-                    <option value="">None</option>
-                    {metricOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">X:</label>
-                  <select
-                    value={xMetricId}
-                    onChange={(e) => setXMetricId(e.target.value)}
-                    disabled={isXAxisLocked}
-                    className="text-sm px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-lime-500 disabled:opacity-50"
-                  >
-                    <option value="">None</option>
-                    {metricOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
+          <div className="flex-1 flex flex-col -mx-4 sm:mx-0 bg-white dark:bg-gray-900 border-x border-b border-gray-200 dark:border-gray-700 rounded-b-none sm:rounded-b-xl">
+            <div className="flex-1 w-full p-2 sm:p-6 sm:pl-12 sm:pb-8">
+              <div className="w-full h-full min-h-[300px] sm:min-h-0 sm:aspect-[4/3] lg:aspect-[16/10] sm:max-h-[70vh]">
+                <MemberGraph
+                  members={visibleMembers}
+                  metrics={group.metrics}
+                  scores={scores}
+                  xMetricId={xMetricId}
+                  yMetricId={yMetricId}
+                  onMemberClick={handleMemberClick}
+                  currentUserId={user?.id || null}
+                  existingRatings={ratings}
+                  onSubmitRating={handleSubmitRating}
+                  canRate={canRate}
+                  isCaptain={isCaptain}
+                />
               </div>
-            )}
-
-            <Card className="flex-1 flex flex-col p-0 sm:p-6 rounded-none sm:rounded-xl overflow-hidden">
-              {/* Graph Title - hidden on mobile since axis labels are inline */}
-              <h2 className="hidden sm:block text-center text-3xl md:text-4xl font-extrabold mb-4 text-gray-800 dark:text-white">
-                {yMetricId && xMetricId ? (
-                  // Both axes selected
-                  <>
-                    <span>
-                      {group.metrics.find((m) => m.id === yMetricId)?.name}
-                    </span>
-                    <span className="mx-3 text-gray-400 dark:text-gray-500 font-normal">×</span>
-                    <span>
-                      {group.metrics.find((m) => m.id === xMetricId)?.name}
-                    </span>
-                  </>
-                ) : yMetricId ? (
-                  // Only Y axis selected
-                  <span>
-                    {group.metrics.find((m) => m.id === yMetricId)?.name}
-                  </span>
-                ) : xMetricId ? (
-                  // Only X axis selected
-                  <span>
-                    {group.metrics.find((m) => m.id === xMetricId)?.name}
-                  </span>
-                ) : (
-                  // Neither axis selected
-                  <span className="text-gray-400 dark:text-gray-500">Items</span>
-                )}
-              </h2>
-              <div className="flex-1 w-full sm:pl-12 sm:pb-8">
-                <div className="w-full h-full min-h-[350px] sm:min-h-0 sm:aspect-[4/3] lg:aspect-[16/10] sm:max-h-[70vh]">
-                  <MemberGraph
-                    members={visibleMembers}
-                    metrics={group.metrics}
-                    scores={scores}
-                    xMetricId={xMetricId}
-                    yMetricId={yMetricId}
-                    onMemberClick={handleMemberClick}
-                    currentUserId={user?.id || null}
-                    existingRatings={ratings}
-                    onSubmitRating={handleSubmitRating}
-                    canRate={canRate}
-                    isCaptain={isCaptain}
-                  />
-                </div>
-              </div>
-
-              {/* Mobile: axis selectors at bottom of graph card - attached to graph */}
-              {group.metrics.length > 0 && (
-                <div className="sm:hidden flex items-center justify-center gap-4 py-1 px-2 bg-gray-100 dark:bg-gray-800">
-                  <div className="flex items-center gap-1.5">
-                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Y:</label>
-                    <select
-                      value={yMetricId}
-                      onChange={(e) => setYMetricId(e.target.value)}
-                      disabled={isYAxisLocked}
-                      className="text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
-                    >
-                      <option value="">None</option>
-                      {metricOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400">X:</label>
-                    <select
-                      value={xMetricId}
-                      onChange={(e) => setXMetricId(e.target.value)}
-                      disabled={isXAxisLocked}
-                      className="text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
-                    >
-                      <option value="">None</option>
-                      {metricOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-            </Card>
+            </div>
           </div>
         )}
 
         {viewMode === 'table' && (
-          <Card className="p-2 sm:p-6 -mx-4 sm:mx-0 rounded-none sm:rounded-xl overflow-auto max-h-[calc(100vh-200px)]">
+          <div className="bg-white dark:bg-gray-900 border-x border-b border-gray-200 dark:border-gray-700 rounded-b-none sm:rounded-b-xl -mx-4 sm:mx-0 p-2 sm:p-6 overflow-auto max-h-[calc(100vh-200px)]">
             <DataTable
               members={members}
               metrics={group.metrics}
@@ -711,11 +718,11 @@ export default function GroupPage() {
               onUpdateCustomDisplay={handleUpdateCustomDisplay}
               onToggleRatingMode={handleToggleRatingMode}
             />
-          </Card>
+          </div>
         )}
 
         {viewMode === 'rate' && canRate && (
-          <Card className="p-4 sm:p-6 -mx-4 sm:mx-0 rounded-none sm:rounded-xl">
+          <div className="bg-white dark:bg-gray-900 border-x border-b border-gray-200 dark:border-gray-700 rounded-b-none sm:rounded-b-xl -mx-4 sm:mx-0 p-4 sm:p-6">
             <RatingForm
               members={members}
               metrics={group.metrics}
@@ -724,7 +731,7 @@ export default function GroupPage() {
               onSubmitRating={handleSubmitRating}
               isCaptain={isCaptain}
             />
-          </Card>
+          </div>
         )}
 
         {/* Empty state for no items */}
