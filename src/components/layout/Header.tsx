@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useUser, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { Menu, X, LayoutDashboard } from 'lucide-react';
 import { useState } from 'react';
@@ -16,12 +17,14 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">S</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">
-              Scale
-            </span>
+            <Image
+              src="/scale.png"
+              alt="Scale"
+              width={120}
+              height={32}
+              className="h-8 w-auto"
+              priority
+            />
           </Link>
 
           {/* Desktop Navigation */}

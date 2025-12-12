@@ -4,24 +4,15 @@ const path = require('path');
 
 const sizes = [72, 96, 128, 144, 152, 180, 192, 384, 512];
 const iconsDir = path.join(__dirname, '../public/icons');
+const sourceImage = path.join(__dirname, '../public/scale1.png');
 
-// Create a simple icon with gradient background and S letter
+// Generate icon from scale1.png source
 async function generateIcon(size, filename) {
-  const svg = `
-    <svg width="${size}" height="${size}" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#3b82f6"/>
-          <stop offset="100%" style="stop-color:#9333ea"/>
-        </linearGradient>
-      </defs>
-      <rect width="512" height="512" rx="96" fill="url(#bgGradient)"/>
-      <text x="256" y="360" text-anchor="middle" font-family="Arial, sans-serif" font-size="340" font-weight="bold" fill="white">S</text>
-    </svg>
-  `;
-
-  await sharp(Buffer.from(svg))
-    .resize(size, size)
+  await sharp(sourceImage)
+    .resize(size, size, {
+      fit: 'contain',
+      background: { r: 255, g: 255, b: 255, alpha: 0 }
+    })
     .png()
     .toFile(path.join(iconsDir, filename));
 
@@ -32,6 +23,12 @@ async function main() {
   // Ensure icons directory exists
   if (!fs.existsSync(iconsDir)) {
     fs.mkdirSync(iconsDir, { recursive: true });
+  }
+
+  // Check if source image exists
+  if (!fs.existsSync(sourceImage)) {
+    console.error('Source image scale1.png not found in public folder!');
+    process.exit(1);
   }
 
   // Generate all icon sizes
@@ -46,7 +43,11 @@ async function main() {
   await generateIcon(32, 'favicon-32x32.png');
   await generateIcon(16, 'favicon-16x16.png');
 
-  console.log('All icons generated successfully!');
+  // Copy original as the largest icon reference
+  fs.copyFileSync(sourceImage, path.join(iconsDir, 'icon-original.png'));
+  console.log('Copied icon-original.png');
+
+  console.log('All icons generated successfully from scale1.png!');
 }
 
 main().catch(console.error);
