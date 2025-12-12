@@ -94,17 +94,21 @@ export default function GroupPage() {
       setGroup(updatedGroup);
       if (updatedGroup && updatedGroup.metrics.length > 0) {
         // Priority: locked > current selection > default > fallback
+        // Note: empty string "" means "None" was explicitly selected
         if (updatedGroup.lockedXMetricId) {
           setXMetricId(updatedGroup.lockedXMetricId);
         } else if (!xMetricId) {
-          setXMetricId(updatedGroup.defaultXMetricId || updatedGroup.metrics[0].id);
+          // Use nullish coalescing - only fallback if null/undefined, not empty string
+          const defaultX = updatedGroup.defaultXMetricId;
+          setXMetricId(defaultX !== null && defaultX !== undefined ? defaultX : updatedGroup.metrics[0].id);
         }
 
         if (updatedGroup.lockedYMetricId) {
           setYMetricId(updatedGroup.lockedYMetricId);
         } else if (!yMetricId) {
           const fallbackY = updatedGroup.metrics.length > 1 ? updatedGroup.metrics[1].id : updatedGroup.metrics[0].id;
-          setYMetricId(updatedGroup.defaultYMetricId || fallbackY);
+          const defaultY = updatedGroup.defaultYMetricId;
+          setYMetricId(defaultY !== null && defaultY !== undefined ? defaultY : fallbackY);
         }
       }
       setLoading(false);
@@ -870,8 +874,8 @@ export default function GroupPage() {
                     Default Y-Axis
                   </label>
                   <select
-                    value={editingDefaultYMetricId || ''}
-                    onChange={(e) => setEditingDefaultYMetricId(e.target.value || null)}
+                    value={editingDefaultYMetricId ?? ''}
+                    onChange={(e) => setEditingDefaultYMetricId(e.target.value)}
                     className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-900"
                   >
                     <option value="">None</option>
@@ -885,8 +889,8 @@ export default function GroupPage() {
                     Default X-Axis
                   </label>
                   <select
-                    value={editingDefaultXMetricId || ''}
-                    onChange={(e) => setEditingDefaultXMetricId(e.target.value || null)}
+                    value={editingDefaultXMetricId ?? ''}
+                    onChange={(e) => setEditingDefaultXMetricId(e.target.value)}
                     className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-900"
                   >
                     <option value="">None</option>
