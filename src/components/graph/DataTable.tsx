@@ -66,7 +66,7 @@ export default function DataTable({
   const [inviteEmail, setInviteEmail] = useState('');
   const [editingDisplaySettings, setEditingDisplaySettings] = useState<string | null>(null);
   const [customNameInput, setCustomNameInput] = useState('');
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customImageInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -198,9 +198,20 @@ export default function DataTable({
       const button = actionButtonRefs.current[memberId];
       if (button) {
         const rect = button.getBoundingClientRect();
+        const dropdownWidth = 288; // w-72 = 18rem = 288px
+        // Calculate left position, ensuring it stays within viewport
+        let left = rect.left;
+        // If dropdown would overflow right side, align to right edge of viewport with padding
+        if (left + dropdownWidth > window.innerWidth - 16) {
+          left = window.innerWidth - dropdownWidth - 16;
+        }
+        // Ensure it doesn't go off left side
+        if (left < 16) {
+          left = 16;
+        }
         setDropdownPosition({
           top: rect.bottom + window.scrollY + 4,
-          right: window.innerWidth - rect.right,
+          left: left,
         });
       }
       setShowMemberActions(memberId);
@@ -522,10 +533,10 @@ export default function DataTable({
       {showMemberActions && dropdownPosition && (
         <div
           data-dropdown
-          className="fixed w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+          className="fixed w-72 max-w-[calc(100vw-32px)] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 max-h-[70vh] overflow-y-auto"
           style={{
             top: dropdownPosition.top,
-            right: dropdownPosition.right,
+            left: dropdownPosition.left,
           }}
         >
           {(() => {

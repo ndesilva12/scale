@@ -722,6 +722,7 @@ export default function GroupPage() {
               currentUserId={user?.id || ''}
               existingRatings={ratings}
               onSubmitRating={handleSubmitRating}
+              isCaptain={isCaptain}
             />
           </Card>
         )}
@@ -816,7 +817,7 @@ export default function GroupPage() {
         title="Manage Metrics"
         size="3xl"
       >
-        <div className="max-h-[60vh] overflow-y-auto space-y-3">
+        <div className="space-y-3 pb-2">
           {editingMetrics.map((metric, index) => {
             // Combine prefix and suffix into a single value for the dropdown
             const qualifierValue = metric.prefix || metric.suffix || '';
@@ -835,84 +836,85 @@ export default function GroupPage() {
                 key={metric.id}
                 className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2"
               >
-                {/* Row 1: Name, Min, Max, Format, Delete */}
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-                  {/* Name - largest, takes remaining space */}
-                  <div className="flex-1 min-w-0 order-1">
-                    <input
-                      type="text"
-                      placeholder="Metric name"
-                      value={metric.name}
-                      onChange={(e) => handleUpdateMetric(index, { name: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900"
-                    />
-                  </div>
-
-                  {/* Min/Max/Format group - fixed widths */}
-                  <div className="flex items-center gap-2 order-2 sm:order-2">
-                    <div className="w-16 sm:w-20">
-                      <input
-                        type="number"
-                        placeholder="Min"
-                        value={metric.minValue}
-                        onChange={(e) => handleUpdateMetric(index, { minValue: Number(e.target.value) })}
-                        className="w-full px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-center"
-                      />
-                    </div>
-                    <div className="w-16 sm:w-20">
-                      <input
-                        type="number"
-                        max={1000000}
-                        placeholder="Max"
-                        value={metric.maxValue}
-                        onChange={(e) => handleUpdateMetric(index, { maxValue: Math.min(1000000, Number(e.target.value)) })}
-                        className="w-full px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-center"
-                      />
-                    </div>
-                    <div className="w-16 sm:w-24">
-                      <select
-                        value={qualifierValue}
-                        onChange={(e) => handleQualifierChange(e.target.value)}
-                        className="w-full px-1 sm:px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900"
-                      >
-                        <option value="">-</option>
-                        <optgroup label="Prefix">
-                          <option value="#">#</option>
-                          <option value="$">$</option>
-                          <option value="€">€</option>
-                          <option value="£">£</option>
-                        </optgroup>
-                        <optgroup label="Suffix">
-                          <option value="%">%</option>
-                          <option value="K">K</option>
-                          <option value="M">M</option>
-                          <option value="B">B</option>
-                          <option value="T">T</option>
-                        </optgroup>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Delete button */}
+                {/* Row 1: Name only - full width with delete button */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Metric name"
+                    value={metric.name}
+                    onChange={(e) => handleUpdateMetric(index, { name: e.target.value })}
+                    className="flex-1 px-3 py-2.5 text-base font-medium border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900"
+                  />
                   <button
                     onClick={() => handleDeleteMetric(index)}
-                    className="p-2 text-lime-500 hover:bg-lime-50 dark:hover:bg-lime-700/20 rounded-lg order-3"
+                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-700/20 rounded-lg flex-shrink-0"
                     title="Remove metric"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
 
-                {/* Row 2: Description - full width */}
-                <input
-                  type="text"
-                  placeholder="Description (optional)"
-                  value={metric.description}
-                  onChange={(e) => handleUpdateMetric(index, { description: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900"
-                />
+                {/* Row 2: Min, Max, Format */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Min</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={metric.minValue}
+                      onChange={(e) => handleUpdateMetric(index, { minValue: Number(e.target.value) })}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-center"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Max</label>
+                    <input
+                      type="number"
+                      max={1000000}
+                      placeholder="100"
+                      value={metric.maxValue}
+                      onChange={(e) => handleUpdateMetric(index, { maxValue: Math.min(1000000, Number(e.target.value)) })}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-center"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Format</label>
+                    <select
+                      value={qualifierValue}
+                      onChange={(e) => handleQualifierChange(e.target.value)}
+                      className="w-full px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900"
+                    >
+                      <option value="">None</option>
+                      <optgroup label="Prefix">
+                        <option value="#">#</option>
+                        <option value="$">$</option>
+                        <option value="€">€</option>
+                        <option value="£">£</option>
+                      </optgroup>
+                      <optgroup label="Suffix">
+                        <option value="%">%</option>
+                        <option value="K">K</option>
+                        <option value="M">M</option>
+                        <option value="B">B</option>
+                        <option value="T">T</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row 3: Description - full width */}
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Description</label>
+                  <input
+                    type="text"
+                    placeholder="Description (optional)"
+                    value={metric.description}
+                    onChange={(e) => handleUpdateMetric(index, { description: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900"
+                  />
+                </div>
               </div>
             );
           })}
