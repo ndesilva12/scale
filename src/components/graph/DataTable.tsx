@@ -271,8 +271,13 @@ export default function DataTable({
       <table className="w-full border-collapse">
         <thead className="sticky top-0 z-20 bg-white dark:bg-gray-900">
           <tr className="border-b border-gray-200 dark:border-gray-700">
-            <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-900 dark:text-white sticky left-0 bg-white dark:bg-gray-900 z-10">
-              Member
+            {isCaptain && (
+              <th className="text-center py-2 sm:py-3 px-2 font-semibold text-gray-900 dark:text-white w-12 sm:w-16 sticky left-0 bg-white dark:bg-gray-900 z-10">
+                <Settings className="w-4 h-4 mx-auto text-gray-400" />
+              </th>
+            )}
+            <th className={`text-left py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-900 dark:text-white ${isCaptain ? '' : 'sticky left-0 bg-white dark:bg-gray-900 z-10'}`}>
+              Item
             </th>
             {metrics.map((metric) => (
               <th
@@ -288,12 +293,6 @@ export default function DataTable({
                 )}
               </th>
             ))}
-            {isCaptain && (
-              <th className="text-center py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-900 dark:text-white w-16 sm:w-24">
-                <span className="hidden sm:inline">Actions</span>
-                <Settings className="w-4 h-4 mx-auto sm:hidden text-gray-400" />
-              </th>
-            )}
           </tr>
         </thead>
         <tbody>
@@ -304,7 +303,21 @@ export default function DataTable({
                 !member.visibleInGraph ? 'opacity-50' : ''
               }`}
             >
-              <td className="py-2 sm:py-3 px-2 sm:px-4 sticky left-0 bg-white dark:bg-gray-900 z-10">
+              {/* Actions cell for captain - now first */}
+              {isCaptain && (
+                <td className="py-2 sm:py-3 px-2 text-center sticky left-0 bg-white dark:bg-gray-900 z-10">
+                  <button
+                    ref={(el) => { actionButtonRefs.current[member.id] = el; }}
+                    data-action-button
+                    onClick={() => handleToggleMemberActions(member.id)}
+                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    title="Item actions"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+                </td>
+              )}
+              <td className={`py-2 sm:py-3 px-2 sm:px-4 ${isCaptain ? '' : 'sticky left-0 bg-white dark:bg-gray-900 z-10'}`}>
                 {editingMember === member.id ? (
                   <div className="space-y-2">
                     <input
@@ -432,15 +445,6 @@ export default function DataTable({
                         </div>
                       </div>
                     </Link>
-                    {canEditMember(member) && (
-                      <button
-                        onClick={() => handleStartEditMember(member)}
-                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        title="Edit member"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )}
                   </div>
                 )}
               </td>
@@ -501,20 +505,6 @@ export default function DataTable({
                   </td>
                 );
               })}
-              {/* Actions cell for captain */}
-              {isCaptain && (
-                <td className="py-3 px-4 text-center">
-                  <button
-                    ref={(el) => { actionButtonRefs.current[member.id] = el; }}
-                    data-action-button
-                    onClick={() => handleToggleMemberActions(member.id)}
-                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                    title="Member actions"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </button>
-                </td>
-              )}
             </tr>
           ))}
         </tbody>
@@ -522,7 +512,7 @@ export default function DataTable({
 
       {activeMembers.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No members to display
+          No items to display
         </div>
       )}
 
@@ -693,7 +683,7 @@ export default function DataTable({
                   </>
                 )}
 
-                {/* Remove member (not for captain) */}
+                {/* Remove item (not for captain) */}
                 {!member.isCaptain && (
                   <button
                     onClick={() => {
@@ -704,7 +694,7 @@ export default function DataTable({
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                   >
                     <Trash2 className="w-4 h-4" />
-                    Remove Member
+                    Remove Item
                   </button>
                 )}
               </div>

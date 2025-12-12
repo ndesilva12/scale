@@ -16,13 +16,14 @@ interface AddMemberFormProps {
 }
 
 export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, existingEmails = [], groupId }: AddMemberFormProps) {
-  const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [placeholderImageUrl, setPlaceholderImageUrl] = useState('');
   const [imageSourceType, setImageSourceType] = useState<ImageSourceType>('url');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUser, setIsUser] = useState(false);
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -74,9 +75,9 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
       return;
     }
 
-    // Email validation only if email is provided
+    // Email validation only if isUser is checked and email is provided
     const trimmedEmail = email.trim();
-    if (trimmedEmail) {
+    if (isUser && trimmedEmail) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(trimmedEmail)) {
         setError('Please enter a valid email address');
@@ -95,8 +96,8 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
         } catch (uploadErr) {
           // Handle upload error gracefully - continue without image
           console.error('Image upload failed:', uploadErr);
-          setError('Image upload failed (CORS issue). Member will be added without custom image. You can configure Firebase Storage CORS settings to enable uploads.');
-          // Don't return - allow member to be added without image
+          setError('Image upload failed (CORS issue). Item will be added without custom image. You can configure Firebase Storage CORS settings to enable uploads.');
+          // Don't return - allow item to be added without image
           finalImageUrl = '';
         }
       } else if (imageSourceType === 'url') {
@@ -104,13 +105,13 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
       }
 
       await onSubmit({
-        email: trimmedEmail ? trimmedEmail.toLowerCase() : null,
+        email: isUser && trimmedEmail ? trimmedEmail.toLowerCase() : null,
         name: name.trim(),
         placeholderImageUrl: finalImageUrl,
         description: description.trim() || null,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add member');
+      setError(err instanceof Error ? err.message : 'Failed to add item');
     } finally {
       setLoading(false);
     }
@@ -149,37 +150,28 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
       </div>
 
       <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Or add a member directly:</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Or add an item directly:</p>
       </div>
 
       <Input
         label="Name"
-        id="member-name"
+        id="item-name"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="John Doe"
+        placeholder="Enter name"
         required
       />
 
-      <Input
-        label="Email Address (optional)"
-        id="member-email"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="john@example.com"
-      />
-
       <div>
-        <label htmlFor="member-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Short Description (optional)
+        <label htmlFor="item-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Description (optional)
         </label>
         <input
-          id="member-description"
+          id="item-description"
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Team lead, Designer, etc."
+          placeholder="Brief description"
           maxLength={100}
           className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
         />
@@ -188,7 +180,7 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
       {/* Image source type selector */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Placeholder Image (optional)
+          Image (optional)
         </label>
         <div className="flex gap-2 mb-3">
           <button
@@ -220,7 +212,7 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
         {/* URL input */}
         {imageSourceType === 'url' && (
           <Input
-            id="member-image-url"
+            id="item-image-url"
             type="url"
             value={placeholderImageUrl}
             onChange={(e) => setPlaceholderImageUrl(e.target.value)}
@@ -274,18 +266,47 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
         )}
       </div>
 
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        {email.trim()
-          ? "An invitation will be sent to this email address. If they don't have an account yet, they can sign up and claim this membership."
-          : "Members without an email can be converted to real users later using a claim link."}
-      </p>
+      {/* User checkbox */}
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isUser}
+            onChange={(e) => setIsUser(e.target.checked)}
+            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            This item represents a user
+          </span>
+        </label>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-7">
+          Check this to send an invite email to let someone claim this item
+        </p>
+      </div>
+
+      {/* Email input - only shown when isUser is checked */}
+      {isUser && (
+        <div className="ml-7">
+          <Input
+            label="Email Address"
+            id="item-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="user@example.com"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            An invitation will be sent to this email. Leave blank to send invite link manually.
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
           Cancel
         </Button>
         <Button type="submit" loading={loading} className="flex-1">
-          Add Member
+          Add
         </Button>
       </div>
     </form>

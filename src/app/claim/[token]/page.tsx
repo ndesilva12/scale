@@ -51,7 +51,7 @@ export default function ClaimPage({ params }: ClaimPageProps) {
       }
 
       if (token.status === 'claimed') {
-        setError('This profile has already been claimed');
+        setError('This item has already been claimed');
         setLoading(false);
         return;
       }
@@ -98,11 +98,11 @@ export default function ClaimPage({ params }: ClaimPageProps) {
       if (result.success && result.groupId) {
         router.push(`/groups/${result.groupId}`);
       } else {
-        setError(result.error || 'Failed to claim profile');
+        setError(result.error || 'Failed to claim item');
       }
     } catch (err) {
-      console.error('Error claiming profile:', err);
-      setError('Failed to claim profile');
+      console.error('Error claiming item:', err);
+      setError('Failed to claim item');
     } finally {
       setClaiming(false);
     }

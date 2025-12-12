@@ -224,7 +224,7 @@ export default function MemberProfilePage() {
               <div className="flex flex-col items-center gap-2">
                 <Button onClick={handleClaimMembership} loading={claiming}>
                   <Hand className="w-4 h-4 mr-2" />
-                  Claim This Profile
+                  Claim This Item
                 </Button>
                 {claimError && (
                   <p className="text-sm text-red-500">{claimError}</p>

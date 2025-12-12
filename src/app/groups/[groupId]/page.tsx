@@ -459,7 +459,7 @@ export default function GroupPage() {
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
                       <UserPlus className="w-4 h-4" />
-                      Add Member
+                      Add
                     </button>
                   </div>
                 </div>
@@ -517,7 +517,7 @@ export default function GroupPage() {
                   </Button>
                   <Button onClick={() => setShowAddMemberModal(true)}>
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Add Member
+                    Add
                   </Button>
                 </>
               )}
@@ -526,53 +526,50 @@ export default function GroupPage() {
         </div>
 
         {/* Desktop control bar - hidden on mobile when graph view */}
-        <Card className={`p-2 sm:p-3 mb-4 sm:mb-6 ${viewMode === 'graph' ? 'hidden sm:block' : ''}`}>
-          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
-            {/* View mode buttons - full width on mobile */}
-            <div className="flex w-full sm:w-auto gap-1 sm:border-r border-gray-200 dark:border-gray-700 sm:pr-3">
+        <Card className={`p-2 sm:p-4 mb-4 sm:mb-6 ${viewMode === 'graph' ? 'hidden sm:block' : ''}`}>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            {/* View mode buttons - full width on mobile, flex on desktop */}
+            <div className="flex w-full gap-1 sm:gap-2">
               <Button
                 variant={viewMode === 'graph' ? 'primary' : 'ghost'}
                 onClick={() => setViewMode('graph')}
-                size="sm"
-                className="flex-1 sm:flex-initial justify-center"
+                className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
               >
-                <BarChart3 className="w-4 h-4 mr-1 sm:mr-2" />
+                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
                 Scale
               </Button>
               <Button
                 variant={viewMode === 'table' ? 'primary' : 'ghost'}
                 onClick={() => setViewMode('table')}
-                size="sm"
-                className="flex-1 sm:flex-initial justify-center"
+                className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
               >
-                <Table className="w-4 h-4 mr-1 sm:mr-2" />
+                <Table className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
                 Data
               </Button>
               {canRate && (
                 <Button
                   variant={viewMode === 'rate' ? 'primary' : 'ghost'}
                   onClick={() => setViewMode('rate')}
-                  size="sm"
-                  className="flex-1 sm:flex-initial justify-center"
+                  className="flex-1 justify-center py-2.5 sm:py-3 text-sm sm:text-base"
                 >
-                  <SlidersHorizontal className="w-4 h-4 mr-1 sm:mr-2" />
+                  <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
                   Rate
                 </Button>
               )}
             </div>
 
-            {/* Metric selectors - only show for graph view on desktop */}
+            {/* Metric selectors - only show for graph view on desktop, fill remaining space */}
             {viewMode === 'graph' && group.metrics.length > 0 && (
-              <div className="hidden sm:flex items-center justify-center gap-3 w-full sm:w-auto">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
+              <div className="hidden sm:flex items-center gap-4 flex-1 justify-end">
+                <div className="flex items-center gap-2 flex-1 max-w-xs">
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     Y:
                   </label>
                   <select
                     value={yMetricId}
                     onChange={(e) => setYMetricId(e.target.value)}
                     disabled={isYAxisLocked}
-                    className="text-sm px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="flex-1 text-base px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
                     <option value="">None</option>
                     {metricOptions.map((opt) => (
@@ -583,15 +580,15 @@ export default function GroupPage() {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                <div className="flex items-center gap-2 flex-1 max-w-xs">
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     X:
                   </label>
                   <select
                     value={xMetricId}
                     onChange={(e) => setXMetricId(e.target.value)}
                     disabled={isXAxisLocked}
-                    className="text-sm px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="flex-1 text-base px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
                     <option value="">None</option>
                     {metricOptions.map((opt) => (
@@ -668,7 +665,7 @@ export default function GroupPage() {
                   </span>
                 ) : (
                   // Neither axis selected
-                  <span className="text-gray-400 dark:text-gray-500">Members</span>
+                  <span className="text-gray-400 dark:text-gray-500">Items</span>
                 )}
               </h2>
               <div className="flex-1 w-full sm:pl-12 sm:pb-8">
@@ -688,41 +685,41 @@ export default function GroupPage() {
                   />
                 </div>
               </div>
-            </Card>
 
-            {/* Mobile: axis selectors fixed at bottom */}
-            {group.metrics.length > 0 && (
-              <div className="sm:hidden flex items-center justify-center gap-4 py-2 px-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Y:</label>
-                  <select
-                    value={yMetricId}
-                    onChange={(e) => setYMetricId(e.target.value)}
-                    disabled={isYAxisLocked}
-                    className="text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
-                  >
-                    <option value="">None</option>
-                    {metricOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
+              {/* Mobile: axis selectors at bottom of graph card */}
+              {group.metrics.length > 0 && (
+                <div className="sm:hidden flex items-center justify-center gap-4 py-2 px-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Y:</label>
+                    <select
+                      value={yMetricId}
+                      onChange={(e) => setYMetricId(e.target.value)}
+                      disabled={isYAxisLocked}
+                      className="text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
+                    >
+                      <option value="">None</option>
+                      {metricOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400">X:</label>
+                    <select
+                      value={xMetricId}
+                      onChange={(e) => setXMetricId(e.target.value)}
+                      disabled={isXAxisLocked}
+                      className="text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
+                    >
+                      <option value="">None</option>
+                      {metricOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400">X:</label>
-                  <select
-                    value={xMetricId}
-                    onChange={(e) => setXMetricId(e.target.value)}
-                    disabled={isXAxisLocked}
-                    className="text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
-                  >
-                    <option value="">None</option>
-                    {metricOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
+              )}
+            </Card>
           </div>
         )}
 
@@ -769,22 +766,22 @@ export default function GroupPage() {
           </Card>
         )}
 
-        {/* Empty state for no members */}
+        {/* Empty state for no items */}
         {members.length === 0 && (
           <Card className="p-12 text-center">
             <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              No members yet
+              No items yet
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               {isCaptain
-                ? 'Add members to start rating and visualizing your group.'
-                : 'The group captain hasn\'t added any members yet.'}
+                ? 'Add items to start rating and visualizing your group.'
+                : 'The group captain hasn\'t added any items yet.'}
             </p>
             {isCaptain && (
               <Button onClick={() => setShowAddMemberModal(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
-                Add First Member
+                Add First Item
               </Button>
             )}
           </Card>
@@ -795,7 +792,7 @@ export default function GroupPage() {
       <Modal
         isOpen={showAddMemberModal}
         onClose={() => setShowAddMemberModal(false)}
-        title="Add New Member"
+        title="Add Item"
       >
         <AddMemberForm
           onSubmit={handleAddMember}

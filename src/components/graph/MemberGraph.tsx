@@ -436,8 +436,8 @@ export default function MemberGraph({
               (containerRef.current?.clientWidth || 300) - (popup.isPinned ? 140 : 100)
             ),
             transform: 'translateX(-50%)',
-            // On mobile (< 768px), position closer to avatar; on desktop, position clearly above
-            top: Math.max(10, popup.y - (popup.isPinned ? 320 : (typeof window !== 'undefined' && window.innerWidth >= 768 ? 130 : 80))),
+            // Position popup above the avatar so it doesn't cover the icon
+            top: Math.max(10, popup.y - (popup.isPinned ? 340 : (typeof window !== 'undefined' && window.innerWidth >= 768 ? 160 : 120))),
           }}
           onMouseEnter={handlePopupMouseEnter}
           onMouseLeave={handlePopupMouseLeave}

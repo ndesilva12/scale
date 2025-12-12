@@ -17,10 +17,10 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">L</span>
+              <span className="text-white font-bold text-lg">S</span>
             </div>
             <span className="text-xl font-bold text-gray-900 dark:text-white">
-              Loyalty
+              Scale
             </span>
           </Link>
 
@@ -45,7 +45,7 @@ export default function Header() {
             </SignedIn>
             <SignedOut>
               <Link href="/sign-in">
-                <Button variant="ghost">Sign In</Button>
+                <Button variant="outline">Sign In</Button>
               </Link>
               <Link href="/sign-up">
                 <Button>Get Started</Button>
@@ -93,10 +93,10 @@ export default function Header() {
             <SignedOut>
               <Link
                 href="/sign-in"
-                className="block px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="block"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Sign In
+                <Button variant="outline" className="w-full">Sign In</Button>
               </Link>
               <Link
                 href="/sign-up"
