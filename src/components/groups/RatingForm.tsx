@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { ChevronLeft } from 'lucide-react';
 import { GroupMember, Metric, Rating } from '@/types';
 import Button from '@/components/ui/Button';
 import Slider from '@/components/ui/Slider';
@@ -119,8 +120,36 @@ export default function RatingForm({
 
   return (
     <div className="space-y-6">
-      {/* Member selector */}
-      <div>
+      {/* Mobile: Show back button and rating header when member selected */}
+      {selectedMember && (
+        <div className="sm:hidden">
+          <button
+            onClick={() => setSelectedMember(null)}
+            className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+          >
+            <ChevronLeft className="w-5 h-5" />
+            <span className="text-sm">Back</span>
+          </button>
+          <div className="flex items-center gap-3 mb-4">
+            <Avatar
+              src={selectedMember.imageUrl || selectedMember.placeholderImageUrl}
+              alt={selectedMember.name}
+              size="lg"
+            />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Rating {selectedMember.name}
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Auto-saves as you adjust
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Member selector - hidden on mobile when member selected */}
+      <div className={selectedMember ? 'hidden sm:block' : ''}>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
           Select Member to Rate
         </label>
@@ -156,8 +185,9 @@ export default function RatingForm({
 
       {/* Rating sliders */}
       {selectedMember && (
-        <Card className="p-6">
-          <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+        <Card className="p-4 sm:p-6">
+          {/* Desktop header - hidden on mobile */}
+          <div className="hidden sm:flex items-center gap-4 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
             <Avatar
               src={selectedMember.imageUrl || selectedMember.placeholderImageUrl}
               alt={selectedMember.name}

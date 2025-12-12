@@ -426,11 +426,16 @@ export default function MemberGraph({
       {popup && (
         <div
           ref={popupRef}
-          className={`absolute z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 transform -translate-x-1/2 ${
-            popup.isPinned ? 'min-w-[280px]' : 'min-w-[200px]'
+          className={`absolute z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 ${
+            popup.isPinned ? 'min-w-[280px] max-w-[90vw]' : 'min-w-[200px] max-w-[85vw]'
           }`}
           style={{
-            left: popup.x,
+            // Calculate left position, clamping to stay within screen bounds
+            left: Math.min(
+              Math.max(popup.isPinned ? 140 : 100, popup.x),
+              (containerRef.current?.clientWidth || 300) - (popup.isPinned ? 140 : 100)
+            ),
+            transform: 'translateX(-50%)',
             // On mobile (< 768px), position closer to avatar; on desktop, position clearly above
             top: Math.max(10, popup.y - (popup.isPinned ? 320 : (typeof window !== 'undefined' && window.innerWidth >= 768 ? 130 : 80))),
           }}
