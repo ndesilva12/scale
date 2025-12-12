@@ -6,6 +6,7 @@ import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  ChevronLeft,
   UserPlus,
   BarChart3,
   Table,
@@ -381,13 +382,94 @@ export default function GroupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className={`min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 ${viewMode === 'graph' ? 'sm:min-h-screen' : ''}`}>
       <Header />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Back link and header */}
-        <div className="mb-4 sm:mb-6">
-          {/* Back link row with mobile captain menu */}
+      <main className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-8 ${viewMode === 'graph' ? 'sm:py-8 flex flex-col' : ''}`}>
+        {/* Mobile header - inline: back chevron + title + menu */}
+        <div className="flex sm:hidden items-center justify-between mb-2">
+          <div className="flex items-center gap-1 flex-1 min-w-0">
+            <Link
+              href="/dashboard"
+              className="p-1 -ml-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </Link>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-white truncate">
+              {group.name}
+            </h1>
+          </div>
+
+          {/* Mobile captain menu (three-dot) */}
+          {isCaptain && (
+            <div className="relative">
+              <button
+                onClick={() => setShowMobileCaptainMenu(!showMobileCaptainMenu)}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+              >
+                <MoreVertical className="w-5 h-5" />
+                {claimRequests.length > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                )}
+              </button>
+
+              {showMobileCaptainMenu && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-30">
+                  <div className="py-1">
+                    {claimRequests.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setShowClaimRequestsModal(true);
+                          setShowMobileCaptainMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <Users className="w-4 h-4" />
+                        Claims
+                        <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                          {claimRequests.length}
+                        </span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        handleOpenGroupSettings();
+                        setShowMobileCaptainMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <Settings2 className="w-4 h-4" />
+                      Settings
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleOpenMetricsModal();
+                        setShowMobileCaptainMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Metrics
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAddMemberModal(true);
+                        setShowMobileCaptainMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Add Member
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Desktop header - full layout */}
+        <div className="hidden sm:block mb-4 sm:mb-6">
           <div className="flex items-center justify-between mb-4">
             <Link
               href="/dashboard"
@@ -396,73 +478,6 @@ export default function GroupPage() {
               <ArrowLeft className="w-4 h-4 mr-1" />
               Back to Dashboard
             </Link>
-
-            {/* Mobile captain menu (three-dot) */}
-            {isCaptain && (
-              <div className="relative sm:hidden">
-                <button
-                  onClick={() => setShowMobileCaptainMenu(!showMobileCaptainMenu)}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-                >
-                  <MoreVertical className="w-5 h-5" />
-                  {claimRequests.length > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-                  )}
-                </button>
-
-                {showMobileCaptainMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-30">
-                    <div className="py-1">
-                      {claimRequests.length > 0 && (
-                        <button
-                          onClick={() => {
-                            setShowClaimRequestsModal(true);
-                            setShowMobileCaptainMenu(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
-                        >
-                          <Users className="w-4 h-4" />
-                          Claims
-                          <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                            {claimRequests.length}
-                          </span>
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          handleOpenGroupSettings();
-                          setShowMobileCaptainMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <Settings2 className="w-4 h-4" />
-                        Settings
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleOpenMetricsModal();
-                          setShowMobileCaptainMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <Settings className="w-4 h-4" />
-                        Metrics
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowAddMemberModal(true);
-                          setShowMobileCaptainMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        Add Member
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -471,12 +486,12 @@ export default function GroupPage() {
                 {group.name}
               </h1>
               {group.description && (
-                <p className="text-gray-600 dark:text-gray-400 mt-1 hidden sm:block">{group.description}</p>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">{group.description}</p>
               )}
             </div>
 
             {/* Desktop captain buttons */}
-            <div className="hidden sm:flex items-center gap-2">
+            <div className="flex items-center gap-2">
               {claimRequests.length > 0 && isCaptain && (
                 <Button
                   variant="outline"
@@ -510,8 +525,8 @@ export default function GroupPage() {
           </div>
         </div>
 
-        {/* Unified control bar */}
-        <Card className="p-2 sm:p-3 mb-4 sm:mb-6">
+        {/* Desktop control bar - hidden on mobile when graph view */}
+        <Card className={`p-2 sm:p-3 mb-4 sm:mb-6 ${viewMode === 'graph' ? 'hidden sm:block' : ''}`}>
           <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
             {/* View mode buttons - full width on mobile */}
             <div className="flex w-full sm:w-auto gap-1 sm:border-r border-gray-200 dark:border-gray-700 sm:pr-3">
@@ -546,9 +561,9 @@ export default function GroupPage() {
               )}
             </div>
 
-            {/* Metric selectors - only show for graph view, centered row on mobile */}
+            {/* Metric selectors - only show for graph view on desktop */}
             {viewMode === 'graph' && group.metrics.length > 0 && (
-              <div className="flex items-center justify-center gap-3 w-full sm:w-auto">
+              <div className="hidden sm:flex items-center justify-center gap-3 w-full sm:w-auto">
                 <div className="flex items-center gap-1.5">
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     Y:
@@ -593,57 +608,126 @@ export default function GroupPage() {
 
         {/* Content */}
         {viewMode === 'graph' && (
-          <Card className="p-2 sm:p-6 -mx-4 sm:mx-0 rounded-none sm:rounded-xl">
-            {/* Graph Title - hidden on mobile since axis labels are inline */}
-            <h2 className="hidden sm:block text-center text-3xl md:text-4xl font-extrabold mb-4">
-              {yMetricId && xMetricId ? (
-                // Both axes selected
-                <>
+          <div className="flex-1 flex flex-col sm:block -mx-4 sm:mx-0">
+            {/* Mobile: tabs directly above graph */}
+            <div className="flex sm:hidden gap-1 px-2 pb-1 bg-gray-50 dark:bg-gray-900">
+              <Button
+                variant="primary"
+                onClick={() => setViewMode('graph')}
+                size="sm"
+                className="flex-1 justify-center"
+              >
+                <BarChart3 className="w-4 h-4 mr-1" />
+                Scale
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setViewMode('table')}
+                size="sm"
+                className="flex-1 justify-center"
+              >
+                <Table className="w-4 h-4 mr-1" />
+                Data
+              </Button>
+              {canRate && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setViewMode('rate')}
+                  size="sm"
+                  className="flex-1 justify-center"
+                >
+                  <SlidersHorizontal className="w-4 h-4 mr-1" />
+                  Rate
+                </Button>
+              )}
+            </div>
+
+            <Card className="flex-1 flex flex-col p-0 sm:p-6 rounded-none sm:rounded-xl overflow-hidden">
+              {/* Graph Title - hidden on mobile since axis labels are inline */}
+              <h2 className="hidden sm:block text-center text-3xl md:text-4xl font-extrabold mb-4">
+                {yMetricId && xMetricId ? (
+                  // Both axes selected
+                  <>
+                    <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 dark:from-blue-400 dark:via-blue-300 dark:to-cyan-400 bg-clip-text text-transparent">
+                      {group.metrics.find((m) => m.id === yMetricId)?.name}
+                    </span>
+                    <span className="mx-3 text-gray-300 dark:text-gray-600 font-normal">×</span>
+                    <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-400 dark:via-emerald-300 dark:to-teal-400 bg-clip-text text-transparent">
+                      {group.metrics.find((m) => m.id === xMetricId)?.name}
+                    </span>
+                  </>
+                ) : yMetricId ? (
+                  // Only Y axis selected
                   <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 dark:from-blue-400 dark:via-blue-300 dark:to-cyan-400 bg-clip-text text-transparent">
                     {group.metrics.find((m) => m.id === yMetricId)?.name}
                   </span>
-                  <span className="mx-3 text-gray-300 dark:text-gray-600 font-normal">×</span>
+                ) : xMetricId ? (
+                  // Only X axis selected
                   <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-400 dark:via-emerald-300 dark:to-teal-400 bg-clip-text text-transparent">
                     {group.metrics.find((m) => m.id === xMetricId)?.name}
                   </span>
-                </>
-              ) : yMetricId ? (
-                // Only Y axis selected
-                <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 dark:from-blue-400 dark:via-blue-300 dark:to-cyan-400 bg-clip-text text-transparent">
-                  {group.metrics.find((m) => m.id === yMetricId)?.name}
-                </span>
-              ) : xMetricId ? (
-                // Only X axis selected
-                <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-400 dark:via-emerald-300 dark:to-teal-400 bg-clip-text text-transparent">
-                  {group.metrics.find((m) => m.id === xMetricId)?.name}
-                </span>
-              ) : (
-                // Neither axis selected
-                <span className="text-gray-400 dark:text-gray-500">Members</span>
-              )}
-            </h2>
-            <div className="w-full sm:pl-12 sm:pb-8">
-              <div className="w-full aspect-square sm:aspect-[4/3] lg:aspect-[16/10] max-h-[70vh]">
-                <MemberGraph
-                  members={visibleMembers}
-                  metrics={group.metrics}
-                  scores={scores}
-                  xMetricId={xMetricId}
-                  yMetricId={yMetricId}
-                  onMemberClick={handleMemberClick}
-                  currentUserId={user?.id || null}
-                  existingRatings={ratings}
-                  onSubmitRating={handleSubmitRating}
-                  canRate={canRate}
-                  isCaptain={isCaptain}
-                />
+                ) : (
+                  // Neither axis selected
+                  <span className="text-gray-400 dark:text-gray-500">Members</span>
+                )}
+              </h2>
+              <div className="flex-1 w-full sm:pl-12 sm:pb-8">
+                <div className="w-full h-full sm:aspect-[4/3] lg:aspect-[16/10] sm:max-h-[70vh]">
+                  <MemberGraph
+                    members={visibleMembers}
+                    metrics={group.metrics}
+                    scores={scores}
+                    xMetricId={xMetricId}
+                    yMetricId={yMetricId}
+                    onMemberClick={handleMemberClick}
+                    currentUserId={user?.id || null}
+                    existingRatings={ratings}
+                    onSubmitRating={handleSubmitRating}
+                    canRate={canRate}
+                    isCaptain={isCaptain}
+                  />
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+
+            {/* Mobile: axis selectors fixed at bottom */}
+            {group.metrics.length > 0 && (
+              <div className="sm:hidden flex items-center justify-center gap-4 py-2 px-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Y:</label>
+                  <select
+                    value={yMetricId}
+                    onChange={(e) => setYMetricId(e.target.value)}
+                    disabled={isYAxisLocked}
+                    className="text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
+                  >
+                    <option value="">None</option>
+                    {metricOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400">X:</label>
+                  <select
+                    value={xMetricId}
+                    onChange={(e) => setXMetricId(e.target.value)}
+                    disabled={isXAxisLocked}
+                    className="text-sm px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-50"
+                  >
+                    <option value="">None</option>
+                    {metricOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {viewMode === 'table' && (
-          <Card className="p-6">
+          <Card className="p-2 sm:p-6 -mx-4 sm:mx-0 rounded-none sm:rounded-xl overflow-auto max-h-[calc(100vh-200px)]">
             <DataTable
               members={members}
               metrics={group.metrics}
@@ -674,7 +758,7 @@ export default function GroupPage() {
         )}
 
         {viewMode === 'rate' && canRate && (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6 -mx-4 sm:mx-0 rounded-none sm:rounded-xl">
             <RatingForm
               members={members}
               metrics={group.metrics}
