@@ -64,9 +64,11 @@ export default function DataTable({
   const [inviteEmail, setInviteEmail] = useState('');
   const [editingDisplaySettings, setEditingDisplaySettings] = useState<string | null>(null);
   const [customNameInput, setCustomNameInput] = useState('');
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customImageInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const actionButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const activeMembers = useMemo(
     () => members.filter((m) => m.status === 'accepted' || m.status === 'placeholder'),
@@ -185,6 +187,38 @@ export default function DataTable({
     // Captain can edit custom display for all members (name/image shown in group)
     return isCaptain && !member.isCaptain;
   };
+
+  const handleToggleMemberActions = (memberId: string) => {
+    if (showMemberActions === memberId) {
+      setShowMemberActions(null);
+      setDropdownPosition(null);
+    } else {
+      const button = actionButtonRefs.current[memberId];
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + window.scrollY + 4,
+          right: window.innerWidth - rect.right,
+        });
+      }
+      setShowMemberActions(memberId);
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showMemberActions) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('[data-dropdown]') && !target.closest('[data-action-button]')) {
+          setShowMemberActions(null);
+          setDropdownPosition(null);
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMemberActions]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -466,186 +500,15 @@ export default function DataTable({
               {/* Actions cell for captain */}
               {isCaptain && (
                 <td className="py-3 px-4 text-center">
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowMemberActions(showMemberActions === member.id ? null : member.id)}
-                      className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                      title="Member actions"
-                    >
-                      <Settings className="w-4 h-4" />
-                    </button>
-
-                    {/* Actions dropdown */}
-                    {showMemberActions === member.id && (
-                      <div className="absolute right-0 top-full mt-1 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20">
-                        <div className="p-2 space-y-1">
-                          {/* Custom display settings for all non-captain members */}
-                          {canEditCustomDisplay(member) && (
-                            <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Display in Group</p>
-                              <div className="flex gap-1 mb-3">
-                                <button
-                                  onClick={() => {
-                                    onToggleDisplayMode?.(member.id, 'user');
-                                  }}
-                                  className={`flex-1 px-2 py-1 text-xs rounded ${
-                                    member.displayMode === 'user'
-                                      ? 'bg-blue-500 text-white'
-                                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                                  }`}
-                                >
-                                  <User className="w-3 h-3 inline mr-1" />
-                                  User Profile
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    onToggleDisplayMode?.(member.id, 'custom');
-                                  }}
-                                  className={`flex-1 px-2 py-1 text-xs rounded ${
-                                    member.displayMode === 'custom'
-                                      ? 'bg-blue-500 text-white'
-                                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                                  }`}
-                                >
-                                  <Pencil className="w-3 h-3 inline mr-1" />
-                                  Custom
-                                </button>
-                              </div>
-
-                              {/* Custom name input */}
-                              <div className="space-y-2">
-                                <div>
-                                  <label className="text-xs text-gray-500 dark:text-gray-400">Custom Name</label>
-                                  <input
-                                    type="text"
-                                    value={editingDisplaySettings === member.id ? customNameInput : (member.customName || '')}
-                                    onChange={(e) => {
-                                      setEditingDisplaySettings(member.id);
-                                      setCustomNameInput(e.target.value);
-                                    }}
-                                    onBlur={() => {
-                                      if (editingDisplaySettings === member.id) {
-                                        onUpdateCustomDisplay?.(member.id, { customName: customNameInput || undefined });
-                                        setEditingDisplaySettings(null);
-                                      }
-                                    }}
-                                    onFocus={() => {
-                                      setEditingDisplaySettings(member.id);
-                                      setCustomNameInput(member.customName || '');
-                                    }}
-                                    placeholder={member.name}
-                                    className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                </div>
-
-                                {/* Custom image upload */}
-                                <div>
-                                  <label className="text-xs text-gray-500 dark:text-gray-400">Custom Image</label>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    {member.customImageUrl && (
-                                      <img
-                                        src={member.customImageUrl}
-                                        alt="Custom"
-                                        className="w-8 h-8 rounded-full object-cover"
-                                      />
-                                    )}
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (customImageInputRef.current) {
-                                          customImageInputRef.current.dataset.memberId = member.id;
-                                          customImageInputRef.current.click();
-                                        }
-                                      }}
-                                      className="flex-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center gap-1"
-                                    >
-                                      {uploadingImage === member.id ? (
-                                        <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-                                      ) : (
-                                        <>
-                                          <Camera className="w-3 h-3" />
-                                          {member.customImageUrl ? 'Change' : 'Upload'}
-                                        </>
-                                      )}
-                                    </button>
-                                    {member.customImageUrl && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          onUpdateCustomDisplay?.(member.id, { customImageUrl: '' });
-                                        }}
-                                        className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                                        title="Remove custom image"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Claim invite options for placeholder members */}
-                          {member.status === 'placeholder' && !member.clerkId && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  onCopyClaimLink?.(member.id);
-                                  setShowMemberActions(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                              >
-                                <Link2 className="w-4 h-4" />
-                                Copy Claim Link
-                              </button>
-                              <div className="px-3 py-2">
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Send claim invite to:</p>
-                                <div className="flex gap-1">
-                                  <input
-                                    type="email"
-                                    value={inviteEmail}
-                                    onChange={(e) => setInviteEmail(e.target.value)}
-                                    placeholder="email@example.com"
-                                    className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                  <button
-                                    onClick={() => {
-                                      if (inviteEmail) {
-                                        onSendClaimInvite?.(member.id, inviteEmail);
-                                        setInviteEmail('');
-                                        setShowMemberActions(null);
-                                      }
-                                    }}
-                                    className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                                    disabled={!inviteEmail}
-                                  >
-                                    <Mail className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            </>
-                          )}
-
-                          {/* Remove member (not for captain) */}
-                          {!member.isCaptain && (
-                            <button
-                              onClick={() => {
-                                onRemoveMember?.(member.id);
-                                setShowMemberActions(null);
-                              }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Remove Member
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    ref={(el) => { actionButtonRefs.current[member.id] = el; }}
+                    data-action-button
+                    onClick={() => handleToggleMemberActions(member.id)}
+                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    title="Member actions"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
                 </td>
               )}
             </tr>
@@ -656,6 +519,193 @@ export default function DataTable({
       {activeMembers.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           No members to display
+        </div>
+      )}
+
+      {/* Fixed position dropdown for member actions */}
+      {showMemberActions && dropdownPosition && (
+        <div
+          data-dropdown
+          className="fixed w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+          style={{
+            top: dropdownPosition.top,
+            right: dropdownPosition.right,
+          }}
+        >
+          {(() => {
+            const member = activeMembers.find((m) => m.id === showMemberActions);
+            if (!member) return null;
+            return (
+              <div className="p-2 space-y-1">
+                {/* Custom display settings for all non-captain members */}
+                {canEditCustomDisplay(member) && (
+                  <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Display in Group</p>
+                    <div className="flex gap-1 mb-3">
+                      <button
+                        onClick={() => {
+                          onToggleDisplayMode?.(member.id, 'user');
+                        }}
+                        className={`flex-1 px-2 py-1 text-xs rounded ${
+                          member.displayMode === 'user'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                        }`}
+                      >
+                        <User className="w-3 h-3 inline mr-1" />
+                        User Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          onToggleDisplayMode?.(member.id, 'custom');
+                        }}
+                        className={`flex-1 px-2 py-1 text-xs rounded ${
+                          member.displayMode === 'custom'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                        }`}
+                      >
+                        <Pencil className="w-3 h-3 inline mr-1" />
+                        Custom
+                      </button>
+                    </div>
+
+                    {/* Custom name input */}
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">Custom Name</label>
+                        <input
+                          type="text"
+                          value={editingDisplaySettings === member.id ? customNameInput : (member.customName || '')}
+                          onChange={(e) => {
+                            setEditingDisplaySettings(member.id);
+                            setCustomNameInput(e.target.value);
+                          }}
+                          onBlur={() => {
+                            if (editingDisplaySettings === member.id) {
+                              onUpdateCustomDisplay?.(member.id, { customName: customNameInput || undefined });
+                              setEditingDisplaySettings(null);
+                            }
+                          }}
+                          onFocus={() => {
+                            setEditingDisplaySettings(member.id);
+                            setCustomNameInput(member.customName || '');
+                          }}
+                          placeholder={member.name}
+                          className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+
+                      {/* Custom image upload */}
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">Custom Image</label>
+                        <div className="flex items-center gap-2 mt-1">
+                          {member.customImageUrl && (
+                            <img
+                              src={member.customImageUrl}
+                              alt="Custom"
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (customImageInputRef.current) {
+                                customImageInputRef.current.dataset.memberId = member.id;
+                                customImageInputRef.current.click();
+                              }
+                            }}
+                            className="flex-1 px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center gap-1"
+                          >
+                            {uploadingImage === member.id ? (
+                              <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <>
+                                <Camera className="w-3 h-3" />
+                                {member.customImageUrl ? 'Change' : 'Upload'}
+                              </>
+                            )}
+                          </button>
+                          {member.customImageUrl && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onUpdateCustomDisplay?.(member.id, { customImageUrl: '' });
+                              }}
+                              className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                              title="Remove custom image"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Claim invite options for placeholder members */}
+                {member.status === 'placeholder' && !member.clerkId && (
+                  <>
+                    <button
+                      onClick={() => {
+                        onCopyClaimLink?.(member.id);
+                        setShowMemberActions(null);
+                        setDropdownPosition(null);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                    >
+                      <Link2 className="w-4 h-4" />
+                      Copy Claim Link
+                    </button>
+                    <div className="px-3 py-2">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Send claim invite to:</p>
+                      <div className="flex gap-1">
+                        <input
+                          type="email"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          placeholder="email@example.com"
+                          className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                          onClick={() => {
+                            if (inviteEmail) {
+                              onSendClaimInvite?.(member.id, inviteEmail);
+                              setInviteEmail('');
+                              setShowMemberActions(null);
+                              setDropdownPosition(null);
+                            }
+                          }}
+                          className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                          disabled={!inviteEmail}
+                        >
+                          <Mail className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Remove member (not for captain) */}
+                {!member.isCaptain && (
+                  <button
+                    onClick={() => {
+                      onRemoveMember?.(member.id);
+                      setShowMemberActions(null);
+                      setDropdownPosition(null);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Remove Member
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

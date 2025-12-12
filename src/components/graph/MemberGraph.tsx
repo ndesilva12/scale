@@ -49,6 +49,8 @@ export default function MemberGraph({
   const popupRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isOverPopupRef = useRef(false);
 
   const xMetric = metrics.find((m) => m.id === xMetricId);
   const yMetric = metrics.find((m) => m.id === yMetricId);
@@ -134,6 +136,12 @@ export default function MemberGraph({
       // Don't override pinned popup on hover
       if (popup?.isPinned) return;
 
+      // Clear any pending close timeout
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
+
       const rect = event.currentTarget.getBoundingClientRect();
       const containerRect = containerRef.current?.getBoundingClientRect();
 
@@ -151,6 +159,26 @@ export default function MemberGraph({
 
   const handleMouseLeave = useCallback(() => {
     // Don't close pinned popup on mouse leave
+    if (popup?.isPinned) return;
+
+    // Use a small delay to allow mouse to move to popup
+    hoverTimeoutRef.current = setTimeout(() => {
+      if (!isOverPopupRef.current) {
+        setPopup(null);
+      }
+    }, 100);
+  }, [popup?.isPinned]);
+
+  const handlePopupMouseEnter = useCallback(() => {
+    isOverPopupRef.current = true;
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handlePopupMouseLeave = useCallback(() => {
+    isOverPopupRef.current = false;
     if (popup?.isPinned) return;
     setPopup(null);
   }, [popup?.isPinned]);
@@ -205,6 +233,9 @@ export default function MemberGraph({
   useEffect(() => {
     return () => {
       Object.values(saveTimeoutRef.current).forEach(clearTimeout);
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -379,6 +410,8 @@ export default function MemberGraph({
             left: popup.x,
             top: Math.max(10, popup.y - (popup.isPinned ? 320 : 100)),
           }}
+          onMouseEnter={handlePopupMouseEnter}
+          onMouseLeave={handlePopupMouseLeave}
         >
           {/* Close button for pinned popup */}
           {popup.isPinned && (

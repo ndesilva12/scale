@@ -733,98 +733,100 @@ export default function GroupPage() {
         onClose={() => setShowMetricsModal(false)}
         title="Manage Metrics"
       >
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-          {editingMetrics.map((metric, index) => (
-            <div key={metric.id} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-500">Metric {index + 1}</span>
-                <button
-                  onClick={() => handleDeleteMetric(index)}
-                  className="text-red-500 hover:text-red-700 text-sm"
+        <div className="max-h-[60vh] overflow-y-auto">
+          {/* Table header */}
+          <div className="grid grid-cols-[1fr_1fr_80px_80px_100px_40px] gap-2 px-2 py-2 bg-gray-100 dark:bg-gray-800 rounded-t-lg text-xs font-medium text-gray-500 dark:text-gray-400">
+            <div>Name</div>
+            <div>Description</div>
+            <div className="text-center">Min</div>
+            <div className="text-center">Max</div>
+            <div className="text-center">Format</div>
+            <div></div>
+          </div>
+
+          {/* Metric rows */}
+          <div className="divide-y divide-gray-200 dark:divide-gray-700 border border-t-0 border-gray-200 dark:border-gray-700 rounded-b-lg">
+            {editingMetrics.map((metric, index) => {
+              // Combine prefix and suffix into a single value for the dropdown
+              const qualifierValue = metric.prefix || metric.suffix || '';
+              const handleQualifierChange = (value: string) => {
+                // Check if it's a prefix (currency symbols, #) or suffix (%, K, M, etc)
+                const prefixes = ['#', '$', '€', '£'];
+                if (prefixes.includes(value)) {
+                  handleUpdateMetric(index, { prefix: value as MetricPrefix, suffix: '' as MetricSuffix });
+                } else {
+                  handleUpdateMetric(index, { prefix: '' as MetricPrefix, suffix: value as MetricSuffix });
+                }
+              };
+
+              return (
+                <div
+                  key={metric.id}
+                  className="grid grid-cols-[1fr_1fr_80px_80px_100px_40px] gap-2 p-2 items-center hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
-                  Remove
-                </button>
-              </div>
-
-              <input
-                type="text"
-                placeholder="Metric name"
-                value={metric.name}
-                onChange={(e) => handleUpdateMetric(index, { name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
-              />
-
-              <input
-                type="text"
-                placeholder="Description (optional)"
-                value={metric.description}
-                onChange={(e) => handleUpdateMetric(index, { description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
-              />
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Min Value</label>
+                  <input
+                    type="text"
+                    placeholder="Name"
+                    value={metric.name}
+                    onChange={(e) => handleUpdateMetric(index, { name: e.target.value })}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Description"
+                    value={metric.description}
+                    onChange={(e) => handleUpdateMetric(index, { description: e.target.value })}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
+                  />
                   <input
                     type="number"
                     value={metric.minValue}
                     onChange={(e) => handleUpdateMetric(index, { minValue: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-center"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Max Value</label>
                   <input
                     type="number"
                     max={1000000}
                     value={metric.maxValue}
                     onChange={(e) => handleUpdateMetric(index, { maxValue: Math.min(1000000, Number(e.target.value)) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-center"
                   />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Prefix</label>
                   <select
-                    value={metric.prefix}
-                    onChange={(e) => handleUpdateMetric(index, { prefix: e.target.value as MetricPrefix })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                    value={qualifierValue}
+                    onChange={(e) => handleQualifierChange(e.target.value)}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900"
                   >
                     <option value="">None</option>
-                    <option value="#">#</option>
-                    <option value="$">$</option>
-                    <option value="€">€</option>
-                    <option value="£">£</option>
+                    <optgroup label="Prefix">
+                      <option value="#">#</option>
+                      <option value="$">$</option>
+                      <option value="€">€</option>
+                      <option value="£">£</option>
+                    </optgroup>
+                    <optgroup label="Suffix">
+                      <option value="%">%</option>
+                      <option value="K">K</option>
+                      <option value="M">M</option>
+                      <option value="B">B</option>
+                      <option value="T">T</option>
+                    </optgroup>
                   </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Suffix</label>
-                  <select
-                    value={metric.suffix}
-                    onChange={(e) => handleUpdateMetric(index, { suffix: e.target.value as MetricSuffix })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+                  <button
+                    onClick={() => handleDeleteMetric(index)}
+                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                    title="Remove metric"
                   >
-                    <option value="">None</option>
-                    <option value="%">%</option>
-                    <option value="K">K (thousands)</option>
-                    <option value="M">M (millions)</option>
-                    <option value="B">B (billions)</option>
-                    <option value="T">T (trillions)</option>
-                    <option value=" thousand"> thousand</option>
-                    <option value=" million"> million</option>
-                    <option value=" billion"> billion</option>
-                    <option value=" trillion"> trillion</option>
-                  </select>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
-              </div>
-
-            </div>
-          ))}
+              );
+            })}
+          </div>
 
           {editingMetrics.length < 10 && (
-            <Button variant="outline" onClick={handleAddMetric} className="w-full">
+            <Button variant="outline" onClick={handleAddMetric} className="w-full mt-3">
               + Add Metric
             </Button>
           )}
