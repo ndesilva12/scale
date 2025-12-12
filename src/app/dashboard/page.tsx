@@ -171,7 +171,7 @@ export default function DashboardPage() {
               Manage your groups and view member ratings
             </p>
           </div>
-          <Button onClick={() => setShowCreateModal(true)}>
+          <Button variant="secondary" onClick={() => setShowCreateModal(true)}>
             <Plus className="w-4 h-4 mr-2" />
             New Group
           </Button>
@@ -189,7 +189,7 @@ export default function DashboardPage() {
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               Create your first group to start rating team members
             </p>
-            <Button onClick={() => setShowCreateModal(true)}>
+            <Button variant="secondary" onClick={() => setShowCreateModal(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Create Group
             </Button>

@@ -515,7 +515,7 @@ export default function GroupPage() {
                     <Settings className="w-4 h-4 mr-2" />
                     Metrics
                   </Button>
-                  <Button onClick={() => setShowAddMemberModal(true)}>
+                  <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
                     <UserPlus className="w-4 h-4 mr-2" />
                     Add
                   </Button>
@@ -641,26 +641,26 @@ export default function GroupPage() {
 
             <Card className="flex-1 flex flex-col p-0 sm:p-6 rounded-none sm:rounded-xl overflow-hidden">
               {/* Graph Title - hidden on mobile since axis labels are inline */}
-              <h2 className="hidden sm:block text-center text-3xl md:text-4xl font-extrabold mb-4">
+              <h2 className="hidden sm:block text-center text-3xl md:text-4xl font-extrabold mb-4 text-gray-800 dark:text-white">
                 {yMetricId && xMetricId ? (
                   // Both axes selected
                   <>
-                    <span className="bg-gradient-to-r from-red-800 via-red-800 to-red-600 dark:from-red-400 dark:via-red-300 dark:to-red-500 bg-clip-text text-transparent">
+                    <span>
                       {group.metrics.find((m) => m.id === yMetricId)?.name}
                     </span>
-                    <span className="mx-3 text-gray-300 dark:text-gray-600 font-normal">×</span>
-                    <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-400 dark:via-emerald-300 dark:to-teal-400 bg-clip-text text-transparent">
+                    <span className="mx-3 text-gray-400 dark:text-gray-500 font-normal">×</span>
+                    <span>
                       {group.metrics.find((m) => m.id === xMetricId)?.name}
                     </span>
                   </>
                 ) : yMetricId ? (
                   // Only Y axis selected
-                  <span className="bg-gradient-to-r from-red-800 via-red-800 to-red-600 dark:from-red-400 dark:via-red-300 dark:to-red-500 bg-clip-text text-transparent">
+                  <span>
                     {group.metrics.find((m) => m.id === yMetricId)?.name}
                   </span>
                 ) : xMetricId ? (
                   // Only X axis selected
-                  <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-400 dark:via-emerald-300 dark:to-teal-400 bg-clip-text text-transparent">
+                  <span>
                     {group.metrics.find((m) => m.id === xMetricId)?.name}
                   </span>
                 ) : (
@@ -779,7 +779,7 @@ export default function GroupPage() {
                 : 'The group captain hasn\'t added any items yet.'}
             </p>
             {isCaptain && (
-              <Button onClick={() => setShowAddMemberModal(true)}>
+              <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
                 Add First Item
               </Button>
@@ -1010,7 +1010,7 @@ export default function GroupPage() {
           <Button variant="outline" onClick={() => setShowMetricsModal(false)} className="flex-1">
             Cancel
           </Button>
-          <Button onClick={handleSaveMetrics} className="flex-1">
+          <Button variant="secondary" onClick={handleSaveMetrics} className="flex-1">
             Save Metrics
           </Button>
         </div>
@@ -1078,7 +1078,7 @@ export default function GroupPage() {
           <Button variant="outline" onClick={() => setShowGroupSettingsModal(false)} className="flex-1">
             Cancel
           </Button>
-          <Button onClick={handleSaveGroupSettings} loading={savingGroupSettings} className="flex-1">
+          <Button variant="secondary" onClick={handleSaveGroupSettings} loading={savingGroupSettings} className="flex-1">
             Save Settings
           </Button>
         </div>

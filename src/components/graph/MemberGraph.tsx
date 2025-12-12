@@ -274,7 +274,7 @@ export default function MemberGraph({
         <div className="transform -rotate-90 whitespace-nowrap">
           <span className={`px-3 py-1.5 rounded-full text-sm md:text-base font-semibold border ${
             yMetricId
-              ? 'bg-gradient-to-r from-red-800/10 to-red-600/10 dark:from-red-400/20 dark:to-red-500/20 text-red-800 dark:text-red-400 border-red-200 dark:border-red-900'
+              ? 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 shadow-sm'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700'
           }`}>
             {yMetric?.name || (yMetricId ? 'Y Axis' : 'None')}
@@ -286,7 +286,7 @@ export default function MemberGraph({
       <div className="hidden md:block absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full pt-2 md:pt-4">
         <span className={`px-3 py-1.5 rounded-full text-sm md:text-base font-semibold border ${
           xMetricId
-            ? 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-400/20 dark:to-teal-400/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+            ? 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600 shadow-sm'
             : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700'
         }`}>
           {xMetric?.name || (xMetricId ? 'X Axis' : 'None')}
@@ -326,7 +326,7 @@ export default function MemberGraph({
       {/* Y-axis scale with inline label on mobile */}
       <div className="absolute left-1 md:left-2 top-0 bottom-0 flex flex-col justify-between py-2 text-xs text-gray-500 dark:text-gray-400">
         {/* Mobile Y-axis label inline */}
-        <span className={`md:hidden text-[10px] font-semibold truncate max-w-[3rem] ${yMetricId ? 'text-red-800 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'}`}>
+        <span className={`md:hidden text-[10px] font-semibold truncate max-w-[3rem] ${yMetricId ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
           {yMetric?.name || (yMetricId ? 'Y' : '-')}
         </span>
         {yMetricId && (() => {
@@ -378,7 +378,7 @@ export default function MemberGraph({
           ));
         })()}
         {/* Mobile X-axis label inline */}
-        <span className={`md:hidden text-[10px] font-semibold truncate max-w-[3rem] ${xMetricId ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`}>
+        <span className={`md:hidden text-[10px] font-semibold truncate max-w-[3rem] ${xMetricId ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
           {xMetric?.name || (xMetricId ? 'X' : '-')}
         </span>
       </div>

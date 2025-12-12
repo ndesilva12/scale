@@ -13,10 +13,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variantStyles = {
-      primary: 'bg-red-800 text-white hover:bg-red-900 focus:ring-red-700',
-      secondary: 'bg-red-700 text-white hover:bg-red-800 focus:ring-red-600',
-      outline: 'border border-red-800 bg-transparent text-red-800 hover:bg-red-50 focus:ring-red-700 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20',
-      ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500 dark:text-gray-300 dark:hover:bg-gray-800',
+      primary: 'bg-white text-red-800 border border-red-200 hover:bg-red-50 focus:ring-red-300 dark:bg-gray-800 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/20',
+      secondary: 'bg-red-800 text-white hover:bg-red-900 focus:ring-red-700',
+      outline: 'border border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-gray-300 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800',
+      ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-300 dark:text-gray-400 dark:hover:bg-gray-800',
       danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
     };
 

@@ -26,7 +26,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <SignedOut>
               <Link href="/sign-up">
-                <Button size="lg" className="w-full sm:w-auto">
+                <Button size="lg" variant="secondary" className="w-full sm:w-auto">
                   Get Started Free
                 </Button>
               </Link>
@@ -38,7 +38,7 @@ export default function Home() {
             </SignedOut>
             <SignedIn>
               <Link href="/dashboard">
-                <Button size="lg" className="w-full sm:w-auto">
+                <Button size="lg" variant="secondary" className="w-full sm:w-auto">
                   Go to Dashboard
                 </Button>
               </Link>
@@ -117,12 +117,12 @@ export default function Home() {
           </p>
           <SignedOut>
             <Link href="/sign-up">
-              <Button size="lg">Create Your First Group</Button>
+              <Button size="lg" variant="secondary">Create Your First Group</Button>
             </Link>
           </SignedOut>
           <SignedIn>
             <Link href="/dashboard">
-              <Button size="lg">Go to Dashboard</Button>
+              <Button size="lg" variant="secondary">Go to Dashboard</Button>
             </Link>
           </SignedIn>
         </div>
