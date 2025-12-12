@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { User, ExternalLink, X } from 'lucide-react';
-import { GroupMember, Metric, AggregatedScore, Rating } from '@/types';
+import { GroupMember, Metric, AggregatedScore, Rating, getMemberDisplayName, getMemberDisplayImage } from '@/types';
 import Button from '@/components/ui/Button';
 import Slider from '@/components/ui/Slider';
 
@@ -18,7 +18,7 @@ interface MemberGraphProps {
   existingRatings?: Rating[];
   onSubmitRating?: (metricId: string, targetMemberId: string, value: number) => Promise<void>;
   canRate?: boolean;
-  isCreator?: boolean;
+  isCaptain?: boolean;
 }
 
 interface PopupData {
@@ -41,36 +41,75 @@ export default function MemberGraph({
   existingRatings = [],
   onSubmitRating,
   canRate = false,
-  isCreator = false,
+  isCaptain = false,
 }: MemberGraphProps) {
   const [popup, setPopup] = useState<PopupData | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isOverPopupRef = useRef(false);
 
-  const xMetric = metrics.find((m) => m.id === xMetricId);
-  const yMetric = metrics.find((m) => m.id === yMetricId);
+  const xMetric = xMetricId ? metrics.find((m) => m.id === xMetricId) : null;
+  const yMetric = yMetricId ? metrics.find((m) => m.id === yMetricId) : null;
+
+  // Helper to format metric value with prefix/suffix
+  const formatValue = (value: number, metric: Metric | undefined | null): string => {
+    if (!metric) return value.toFixed(1);
+    return `${metric.prefix}${value.toFixed(1)}${metric.suffix}`;
+  };
 
   // Calculate positions for each member
   const plottedMembers = useMemo(() => {
-    return members
-      .filter((m) => m.status === 'accepted' || m.status === 'placeholder')
-      .map((member) => {
+    const activeMembers = members.filter((m) => m.status === 'accepted' || m.status === 'placeholder');
+    const totalMembers = activeMembers.length;
+
+    return activeMembers.map((member, index) => {
+      // When axis is "none" (empty string), spread members evenly
+      let xValue: number;
+      let yValue: number;
+      let xRaw: number;
+      let yRaw: number;
+
+      if (!xMetricId) {
+        // No X axis - spread horizontally
+        xValue = totalMembers > 1 ? (index / (totalMembers - 1)) * 80 + 10 : 50;
+        xRaw = 0;
+      } else {
         const xScore = scores.find(
           (s) => s.memberId === member.id && s.metricId === xMetricId
         );
+        xRaw = xScore?.averageValue ?? 50;
+        const xMin = xMetric?.minValue ?? 0;
+        const xMax = xMetric?.maxValue ?? 100;
+        xValue = xMax > xMin ? ((xRaw - xMin) / (xMax - xMin)) * 100 : 50;
+      }
+
+      if (!yMetricId) {
+        // No Y axis - spread vertically
+        yValue = totalMembers > 1 ? (index / (totalMembers - 1)) * 80 + 10 : 50;
+        yRaw = 0;
+      } else {
         const yScore = scores.find(
           (s) => s.memberId === member.id && s.metricId === yMetricId
         );
+        yRaw = yScore?.averageValue ?? 50;
+        const yMin = yMetric?.minValue ?? 0;
+        const yMax = yMetric?.maxValue ?? 100;
+        yValue = yMax > yMin ? ((yRaw - yMin) / (yMax - yMin)) * 100 : 50;
+      }
 
-        return {
-          member,
-          xValue: xScore?.averageValue ?? 50,
-          yValue: yScore?.averageValue ?? 50,
-        };
-      });
-  }, [members, scores, xMetricId, yMetricId]);
+      return {
+        member,
+        xValue,
+        yValue,
+        xRaw,
+        yRaw,
+      };
+    });
+  }, [members, scores, xMetricId, yMetricId, xMetric, yMetric]);
 
   // Load existing ratings when popup member changes
   useEffect(() => {
@@ -83,7 +122,9 @@ export default function MemberGraph({
             r.metricId === metric.id &&
             r.raterId === currentUserId
         );
-        memberRatings[metric.id] = existing?.value ?? 50;
+        // Use metric midpoint as default
+        const defaultValue = Math.round((metric.minValue + metric.maxValue) / 2);
+        memberRatings[metric.id] = existing?.value ?? defaultValue;
       });
       setRatings(memberRatings);
     }
@@ -110,6 +151,12 @@ export default function MemberGraph({
       // Don't override pinned popup on hover
       if (popup?.isPinned) return;
 
+      // Clear any pending close timeout
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
+
       const rect = event.currentTarget.getBoundingClientRect();
       const containerRect = containerRef.current?.getBoundingClientRect();
 
@@ -127,6 +174,26 @@ export default function MemberGraph({
 
   const handleMouseLeave = useCallback(() => {
     // Don't close pinned popup on mouse leave
+    if (popup?.isPinned) return;
+
+    // Use a small delay to allow mouse to move to popup
+    hoverTimeoutRef.current = setTimeout(() => {
+      if (!isOverPopupRef.current) {
+        setPopup(null);
+      }
+    }, 100);
+  }, [popup?.isPinned]);
+
+  const handlePopupMouseEnter = useCallback(() => {
+    isOverPopupRef.current = true;
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handlePopupMouseLeave = useCallback(() => {
+    isOverPopupRef.current = false;
     if (popup?.isPinned) return;
     setPopup(null);
   }, [popup?.isPinned]);
@@ -149,20 +216,43 @@ export default function MemberGraph({
     []
   );
 
-  const handleRatingChange = (metricId: string, value: number) => {
-    setRatings((prev) => ({ ...prev, [metricId]: value }));
-  };
-
-  const handleSaveRating = async (metricId: string) => {
-    if (!popup?.member || !onSubmitRating) return;
+  // Auto-save rating with debounce
+  const autoSaveRating = useCallback(async (metricId: string, memberId: string, value: number) => {
+    if (!onSubmitRating) return;
 
     setSaving(metricId);
     try {
-      await onSubmitRating(metricId, popup.member.id, ratings[metricId]);
+      await onSubmitRating(metricId, memberId, value);
     } finally {
       setSaving(null);
     }
+  }, [onSubmitRating]);
+
+  const handleRatingChange = (metricId: string, value: number) => {
+    setRatings((prev) => ({ ...prev, [metricId]: value }));
+
+    // Clear any existing timeout for this metric
+    if (saveTimeoutRef.current[metricId]) {
+      clearTimeout(saveTimeoutRef.current[metricId]);
+    }
+
+    // Set new timeout for auto-save (500ms debounce)
+    if (popup?.member) {
+      saveTimeoutRef.current[metricId] = setTimeout(() => {
+        autoSaveRating(metricId, popup.member.id, value);
+      }, 500);
+    }
   };
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimeoutRef.current).forEach(clearTimeout);
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleViewProfile = () => {
     if (popup?.member) {
@@ -179,18 +269,28 @@ export default function MemberGraph({
       ref={containerRef}
       className="relative w-full h-full min-h-[400px] bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700"
     >
-      {/* Y-axis label */}
-      <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 md:pr-4">
-        <div className="transform -rotate-90 whitespace-nowrap text-sm font-medium text-gray-600 dark:text-gray-400">
-          {yMetric?.name || 'Y Axis'}
+      {/* Y-axis label - hidden on mobile, shown on larger screens */}
+      <div className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-2 md:pr-4">
+        <div className="transform -rotate-90 whitespace-nowrap">
+          <span className={`px-3 py-1.5 rounded-full text-sm md:text-base font-semibold border ${
+            yMetricId
+              ? 'bg-gradient-to-r from-blue-500/10 to-cyan-500/10 dark:from-blue-400/20 dark:to-cyan-400/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700'
+          }`}>
+            {yMetric?.name || (yMetricId ? 'Y Axis' : 'None')}
+          </span>
         </div>
       </div>
 
-      {/* X-axis label */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full pt-2 md:pt-4">
-        <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-          {xMetric?.name || 'X Axis'}
-        </div>
+      {/* X-axis label - hidden on mobile, shown on larger screens */}
+      <div className="hidden md:block absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full pt-2 md:pt-4">
+        <span className={`px-3 py-1.5 rounded-full text-sm md:text-base font-semibold border ${
+          xMetricId
+            ? 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-400/20 dark:to-teal-400/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+            : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700'
+        }`}>
+          {xMetric?.name || (xMetricId ? 'X Axis' : 'None')}
+        </span>
       </div>
 
       {/* Grid lines */}
@@ -223,28 +323,71 @@ export default function MemberGraph({
         ))}
       </svg>
 
-      {/* Y-axis scale */}
+      {/* Y-axis scale with inline label on mobile */}
       <div className="absolute left-1 md:left-2 top-0 bottom-0 flex flex-col justify-between py-2 text-xs text-gray-500 dark:text-gray-400">
-        <span>100</span>
-        <span>75</span>
-        <span>50</span>
-        <span>25</span>
-        <span>0</span>
+        {/* Mobile Y-axis label inline */}
+        <span className={`md:hidden text-[10px] font-semibold truncate max-w-[3rem] ${yMetricId ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
+          {yMetric?.name || (yMetricId ? 'Y' : '-')}
+        </span>
+        {yMetricId && (() => {
+          const min = yMetric?.minValue ?? 0;
+          const max = yMetric?.maxValue ?? 100;
+          const range = max - min;
+          const prefix = yMetric?.prefix ?? '';
+          const suffix = yMetric?.suffix ?? '';
+          // Show fewer values on mobile (top, middle, bottom)
+          return [100, 50, 0].map((pct) => (
+            <span key={pct} className="md:hidden">{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
+          ));
+        })()}
+        {yMetricId && (() => {
+          const min = yMetric?.minValue ?? 0;
+          const max = yMetric?.maxValue ?? 100;
+          const range = max - min;
+          const prefix = yMetric?.prefix ?? '';
+          const suffix = yMetric?.suffix ?? '';
+          // Show all values on desktop
+          return [100, 75, 50, 25, 0].map((pct) => (
+            <span key={pct} className="hidden md:block">{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
+          ));
+        })()}
       </div>
 
-      {/* X-axis scale */}
-      <div className="absolute left-0 right-0 bottom-1 md:bottom-2 flex justify-between px-2 text-xs text-gray-500 dark:text-gray-400">
-        <span>0</span>
-        <span>25</span>
-        <span>50</span>
-        <span>75</span>
-        <span>100</span>
+      {/* X-axis scale with inline label on mobile */}
+      <div className="absolute left-0 right-0 bottom-1 md:bottom-2 flex justify-between items-center px-2 text-xs text-gray-500 dark:text-gray-400">
+        {xMetricId && (() => {
+          const min = xMetric?.minValue ?? 0;
+          const max = xMetric?.maxValue ?? 100;
+          const range = max - min;
+          const prefix = xMetric?.prefix ?? '';
+          const suffix = xMetric?.suffix ?? '';
+          // Show fewer values on mobile
+          return [0, 50, 100].map((pct) => (
+            <span key={pct} className="md:hidden">{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
+          ));
+        })()}
+        {xMetricId && (() => {
+          const min = xMetric?.minValue ?? 0;
+          const max = xMetric?.maxValue ?? 100;
+          const range = max - min;
+          const prefix = xMetric?.prefix ?? '';
+          const suffix = xMetric?.suffix ?? '';
+          // Show all values on desktop
+          return [0, 25, 50, 75, 100].map((pct) => (
+            <span key={pct} className="hidden md:block">{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
+          ));
+        })()}
+        {/* Mobile X-axis label inline */}
+        <span className={`md:hidden text-[10px] font-semibold truncate max-w-[3rem] ${xMetricId ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`}>
+          {xMetric?.name || (xMetricId ? 'X' : '-')}
+        </span>
       </div>
 
       {/* Plotted members */}
       <div className="absolute inset-6 md:inset-8">
         {plottedMembers.map((data) => {
-          const imageUrl = data.member.imageUrl || data.member.placeholderImageUrl;
+          const displayImage = getMemberDisplayImage(data.member);
+          const displayName = getMemberDisplayName(data.member);
 
           return (
             <div
@@ -260,10 +403,10 @@ export default function MemberGraph({
               onClick={(e) => handleClick(data, e)}
             >
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden border-2 border-white dark:border-gray-800 shadow-lg bg-gray-200 dark:bg-gray-700">
-                {imageUrl ? (
+                {displayImage ? (
                   <Image
-                    src={imageUrl}
-                    alt={data.member.name}
+                    src={displayImage}
+                    alt={displayName}
                     width={48}
                     height={48}
                     className="w-full h-full object-cover"
@@ -288,8 +431,11 @@ export default function MemberGraph({
           }`}
           style={{
             left: popup.x,
-            top: Math.max(10, popup.y - (popup.isPinned ? 320 : 100)),
+            // On mobile (< 768px), position closer to avatar; on desktop, position clearly above
+            top: Math.max(10, popup.y - (popup.isPinned ? 320 : (typeof window !== 'undefined' && window.innerWidth >= 768 ? 130 : 80))),
           }}
+          onMouseEnter={handlePopupMouseEnter}
+          onMouseLeave={handlePopupMouseLeave}
         >
           {/* Close button for pinned popup */}
           {popup.isPinned && (
@@ -305,10 +451,10 @@ export default function MemberGraph({
             {/* Member info header */}
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
-                {popup.member.imageUrl || popup.member.placeholderImageUrl ? (
+                {getMemberDisplayImage(popup.member) ? (
                   <Image
-                    src={popup.member.imageUrl || popup.member.placeholderImageUrl || ''}
-                    alt={popup.member.name}
+                    src={getMemberDisplayImage(popup.member) || ''}
+                    alt={getMemberDisplayName(popup.member)}
                     width={48}
                     height={48}
                     className="w-full h-full object-cover"
@@ -321,23 +467,32 @@ export default function MemberGraph({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-gray-900 dark:text-white truncate">
-                  {popup.member.name}
+                  {getMemberDisplayName(popup.member)}
                 </div>
+                {popup.member.description && (
+                  <div className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                    {popup.member.description}
+                  </div>
+                )}
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   {popup.member.status === 'placeholder' ? 'Pending' : 'Active'}
                 </div>
               </div>
             </div>
 
-            {/* Current scores */}
+            {/* Current scores - show raw values with formatting */}
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
               <div className="flex justify-between">
                 <span>{yMetric?.name}:</span>
-                <span className="font-medium text-gray-900 dark:text-white">{popup.yValue.toFixed(1)}</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {formatValue(plottedMembers.find(p => p.member.id === popup.member.id)?.yRaw ?? 0, yMetric)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>{xMetric?.name}:</span>
-                <span className="font-medium text-gray-900 dark:text-white">{popup.xValue.toFixed(1)}</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {formatValue(plottedMembers.find(p => p.member.id === popup.member.id)?.xRaw ?? 0, xMetric)}
+                </span>
               </div>
             </div>
 
@@ -345,7 +500,7 @@ export default function MemberGraph({
             {popup.isPinned && canRate && onSubmitRating && (
               <div className="mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Your Ratings:
+                  Your Ratings (auto-saves):
                 </div>
                 <div className="space-y-3 max-h-[200px] overflow-y-auto">
                   {metrics.map((metric) => (
@@ -353,23 +508,19 @@ export default function MemberGraph({
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-gray-700 dark:text-gray-300">{metric.name}</span>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900 dark:text-white w-8 text-right">
-                            {ratings[metric.id] ?? 50}
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            {metric.prefix}{ratings[metric.id] ?? Math.round((metric.minValue + metric.maxValue) / 2)}{metric.suffix}
                           </span>
-                          <button
-                            onClick={() => handleSaveRating(metric.id)}
-                            disabled={saving !== null}
-                            className="text-xs px-2 py-0.5 bg-blue-500 hover:bg-blue-600 text-white rounded disabled:opacity-50"
-                          >
-                            {saving === metric.id ? '...' : 'Save'}
-                          </button>
+                          {saving === metric.id && (
+                            <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          )}
                         </div>
                       </div>
                       <Slider
-                        value={ratings[metric.id] ?? 50}
+                        value={ratings[metric.id] ?? Math.round((metric.minValue + metric.maxValue) / 2)}
                         onChange={(e) => handleRatingChange(metric.id, Number(e.target.value))}
-                        min={0}
-                        max={100}
+                        min={metric.minValue}
+                        max={metric.maxValue}
                         className="h-1.5"
                       />
                     </div>

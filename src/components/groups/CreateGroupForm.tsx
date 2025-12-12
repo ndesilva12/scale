@@ -77,6 +77,10 @@ export default function CreateGroupForm({ onSubmit, onCancel }: CreateGroupFormP
           name: m.name.trim(),
           description: m.description.trim(),
           order: index,
+          minValue: 0,
+          maxValue: 100,
+          prefix: '' as const,
+          suffix: '' as const,
         })),
       });
     } catch (err) {

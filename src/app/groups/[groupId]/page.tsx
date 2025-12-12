@@ -12,6 +12,11 @@ import {
   SlidersHorizontal,
   Users,
   AlertCircle,
+  Settings,
+  Anchor,
+  Settings2,
+  Lock,
+  MoreVertical,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -22,7 +27,7 @@ import MemberGraph from '@/components/graph/MemberGraph';
 import DataTable from '@/components/graph/DataTable';
 import AddMemberForm from '@/components/groups/AddMemberForm';
 import RatingForm from '@/components/groups/RatingForm';
-import { Group, GroupMember, Rating, AggregatedScore, ClaimRequest } from '@/types';
+import { Group, GroupMember, Rating, AggregatedScore, ClaimRequest, Metric, MetricPrefix, MetricSuffix } from '@/types';
 import {
   subscribeToGroup,
   subscribeToMembers,
@@ -36,7 +41,11 @@ import {
   updateMemberVisibility,
   uploadMemberImage,
   updateMember,
+  updateGroup,
+  removeMember,
+  createClaimToken,
 } from '@/lib/firestore';
+import Input from '@/components/ui/Input';
 
 type ViewMode = 'graph' | 'table' | 'rate';
 
@@ -55,12 +64,25 @@ export default function GroupPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showClaimRequestsModal, setShowClaimRequestsModal] = useState(false);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
+  const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false);
+  const [editingMetrics, setEditingMetrics] = useState<Metric[]>([]);
+  const [editingGroupName, setEditingGroupName] = useState('');
+  const [editingGroupDescription, setEditingGroupDescription] = useState('');
+  const [editingDefaultYMetricId, setEditingDefaultYMetricId] = useState<string | null>(null);
+  const [editingDefaultXMetricId, setEditingDefaultXMetricId] = useState<string | null>(null);
+  const [editingLockedYMetricId, setEditingLockedYMetricId] = useState<string | null>(null);
+  const [editingLockedXMetricId, setEditingLockedXMetricId] = useState<string | null>(null);
+  const [editingCaptainControlEnabled, setEditingCaptainControlEnabled] = useState(false);
+  const [savingGroupSettings, setSavingGroupSettings] = useState(false);
+  const [showMobileCaptainMenu, setShowMobileCaptainMenu] = useState(false);
 
   // Graph state
   const [xMetricId, setXMetricId] = useState<string>('');
   const [yMetricId, setYMetricId] = useState<string>('');
 
-  const isCreator = group?.creatorId === user?.id;
+  // Use captainId with backward compatibility for creatorId
+  const isCaptain = group?.captainId === user?.id;
   const currentMember = members.find((m) => m.clerkId === user?.id);
   const canRate = currentMember?.status === 'accepted';
 
@@ -71,11 +93,18 @@ export default function GroupPage() {
     const unsubscribeGroup = subscribeToGroup(groupId, (updatedGroup) => {
       setGroup(updatedGroup);
       if (updatedGroup && updatedGroup.metrics.length > 0) {
-        if (!xMetricId) setXMetricId(updatedGroup.metrics[0].id);
-        if (!yMetricId && updatedGroup.metrics.length > 1) {
-          setYMetricId(updatedGroup.metrics[1].id);
+        // Priority: locked > current selection > default > fallback
+        if (updatedGroup.lockedXMetricId) {
+          setXMetricId(updatedGroup.lockedXMetricId);
+        } else if (!xMetricId) {
+          setXMetricId(updatedGroup.defaultXMetricId || updatedGroup.metrics[0].id);
+        }
+
+        if (updatedGroup.lockedYMetricId) {
+          setYMetricId(updatedGroup.lockedYMetricId);
         } else if (!yMetricId) {
-          setYMetricId(updatedGroup.metrics[0].id);
+          const fallbackY = updatedGroup.metrics.length > 1 ? updatedGroup.metrics[1].id : updatedGroup.metrics[0].id;
+          setYMetricId(updatedGroup.defaultYMetricId || fallbackY);
         }
       }
       setLoading(false);
@@ -99,60 +128,68 @@ export default function GroupPage() {
     }
   }, [group, members, ratings]);
 
-  // Load claim requests for creator
+  // Load claim requests for captain
   useEffect(() => {
-    if (isCreator && groupId) {
+    if (isCaptain && groupId) {
       getGroupClaimRequests(groupId).then(setClaimRequests);
     }
-  }, [isCreator, groupId]);
+  }, [isCaptain, groupId]);
 
-  // Auto-add creator as member if not already in group (for groups created before this feature)
+  // Auto-add captain as member if not already in group (for groups created before this feature)
   useEffect(() => {
-    const addCreatorAsMember = async () => {
-      if (!user || !group || !isCreator) return;
+    const addCaptainAsMember = async () => {
+      if (!user || !group || !isCaptain) return;
 
-      // Check if creator is already a member
-      const creatorIsMember = members.some((m) => m.clerkId === user.id);
-      if (creatorIsMember) return;
+      // Check if captain is already a member
+      const captainIsMember = members.some((m) => m.clerkId === user.id);
+      if (captainIsMember) return;
 
-      // Add creator as first member
-      console.log('Auto-adding creator as member...');
+      // Add captain as first member
+      console.log('Auto-adding captain as member...');
       await addMember(
         groupId,
         user.emailAddresses[0]?.emailAddress || '',
-        user.fullName || user.firstName || 'Creator',
+        user.fullName || user.firstName || 'Captain',
         null, // placeholderImageUrl
         user.id, // clerkId
         'accepted', // status
         user.imageUrl, // imageUrl
-        true // isCreator
+        true // isCaptain
       );
     };
 
     // Only run when we have loaded the group and members
     if (group && members !== undefined && !loading) {
-      addCreatorAsMember();
+      addCaptainAsMember();
     }
-  }, [group, members, isCreator, user, groupId, loading]);
+  }, [group, members, isCaptain, user, groupId, loading]);
 
-  const handleAddMember = async (data: { email: string; name: string; placeholderImageUrl: string }) => {
+  const handleAddMember = async (data: { email: string | null; name: string; placeholderImageUrl: string; description: string | null }) => {
     if (!user || !group) return;
 
     const member = await addMember(
       groupId,
       data.email,
       data.name,
-      data.placeholderImageUrl || null
+      data.placeholderImageUrl || null,
+      null, // clerkId
+      'placeholder', // status
+      null, // imageUrl
+      false, // isCaptain
+      data.description
     );
 
-    await createInvitation(
-      groupId,
-      group.name,
-      data.email,
-      member.id,
-      user.id,
-      user.fullName || user.emailAddresses[0]?.emailAddress || 'Unknown'
-    );
+    // Only create invitation if email is provided
+    if (data.email) {
+      await createInvitation(
+        groupId,
+        group.name,
+        data.email,
+        member.id,
+        user.id,
+        user.fullName || user.emailAddresses[0]?.emailAddress || 'Unknown'
+      );
+    }
 
     setShowAddMemberModal(false);
   };
@@ -170,8 +207,54 @@ export default function GroupPage() {
     await updateMemberVisibility(memberId, visible);
   };
 
-  const handleEditMember = async (memberId: string, data: { name: string; email: string }) => {
-    await updateMember(memberId, { name: data.name, email: data.email });
+  const handleEditMember = async (memberId: string, data: { name: string; email: string; imageUrl?: string }) => {
+    await updateMember(memberId, { name: data.name, email: data.email, placeholderImageUrl: data.imageUrl });
+  };
+
+  const handleOpenMetricsModal = () => {
+    if (group) {
+      setEditingMetrics([...group.metrics]);
+      setEditingDefaultYMetricId(group.defaultYMetricId);
+      setEditingDefaultXMetricId(group.defaultXMetricId);
+      setShowMetricsModal(true);
+    }
+  };
+
+  const handleSaveMetrics = async () => {
+    if (!group) return;
+    await updateGroup(groupId, {
+      metrics: editingMetrics,
+      defaultYMetricId: editingDefaultYMetricId,
+      defaultXMetricId: editingDefaultXMetricId,
+    });
+    setShowMetricsModal(false);
+  };
+
+  const handleAddMetric = () => {
+    const newMetric: Metric = {
+      id: `metric-${Date.now()}`,
+      name: '',
+      description: '',
+      order: editingMetrics.length,
+      minValue: 0,
+      maxValue: 100,
+      prefix: '',
+      suffix: '',
+    };
+    setEditingMetrics([...editingMetrics, newMetric]);
+  };
+
+  const handleUpdateMetric = (index: number, updates: Partial<Metric>) => {
+    setEditingMetrics(editingMetrics.map((m, i) => (i === index ? { ...m, ...updates } : m)));
+  };
+
+  const handleDeleteMetric = (index: number) => {
+    setEditingMetrics(editingMetrics.filter((_, i) => i !== index));
+  };
+
+  const handleUploadMemberImage = async (memberId: string, file: File) => {
+    const imageUrl = await uploadMemberImage(groupId, file);
+    await updateMember(memberId, { placeholderImageUrl: imageUrl });
   };
 
   const handleApproveClaimRequest = async (request: ClaimRequest) => {
@@ -182,6 +265,76 @@ export default function GroupPage() {
   const handleRejectClaimRequest = async (request: ClaimRequest) => {
     await respondToClaimRequest(request.id, false, '', null);
     setClaimRequests((prev) => prev.filter((r) => r.id !== request.id));
+  };
+
+  const handleOpenGroupSettings = () => {
+    if (group) {
+      setEditingGroupName(group.name);
+      setEditingGroupDescription(group.description || '');
+      setEditingLockedYMetricId(group.lockedYMetricId);
+      setEditingLockedXMetricId(group.lockedXMetricId);
+      setEditingCaptainControlEnabled(group.captainControlEnabled);
+      setShowGroupSettingsModal(true);
+    }
+  };
+
+  const handleSaveGroupSettings = async () => {
+    if (!group) return;
+    setSavingGroupSettings(true);
+    try {
+      await updateGroup(groupId, {
+        name: editingGroupName.trim(),
+        description: editingGroupDescription.trim(),
+        lockedYMetricId: editingLockedYMetricId,
+        lockedXMetricId: editingLockedXMetricId,
+        captainControlEnabled: editingCaptainControlEnabled,
+      });
+      setShowGroupSettingsModal(false);
+    } finally {
+      setSavingGroupSettings(false);
+    }
+  };
+
+  // Check if axes are locked
+  const isYAxisLocked = !!group?.lockedYMetricId;
+  const isXAxisLocked = !!group?.lockedXMetricId;
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!confirm('Are you sure you want to remove this member? This will also delete their ratings.')) {
+      return;
+    }
+    await removeMember(memberId);
+  };
+
+  const handleCreateClaimLink = async (memberId: string, email?: string) => {
+    if (!user) return null;
+    const claimToken = await createClaimToken(groupId, memberId, user.id, email || null);
+    return `${window.location.origin}/claim/${claimToken.token}`;
+  };
+
+  const handleCopyClaimLink = async (memberId: string) => {
+    const link = await handleCreateClaimLink(memberId);
+    if (link) {
+      await navigator.clipboard.writeText(link);
+      alert('Claim link copied to clipboard!');
+    }
+  };
+
+  const handleSendClaimInvite = async (memberId: string, email: string) => {
+    const link = await handleCreateClaimLink(memberId, email);
+    if (link) {
+      // For now, just copy the link. In the future, this could send an email
+      await navigator.clipboard.writeText(link);
+      alert(`Claim link for ${email} copied to clipboard! Send this link to them to claim their profile.`);
+    }
+  };
+
+  const handleToggleDisplayMode = async (memberId: string, mode: 'user' | 'custom') => {
+    await updateMember(memberId, { displayMode: mode });
+  };
+
+  const handleUpdateCustomDisplay = async (memberId: string, data: { customName?: string; customImageUrl?: string }) => {
+    await updateMember(memberId, data);
   };
 
   // Get visible members for the graph
@@ -227,16 +380,86 @@ export default function GroupPage() {
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <Header />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Back link and header */}
-        <div className="mb-6">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Dashboard
-          </Link>
+        <div className="mb-4 sm:mb-6">
+          {/* Back link row with mobile captain menu */}
+          <div className="flex items-center justify-between mb-4">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Back to Dashboard
+            </Link>
+
+            {/* Mobile captain menu (three-dot) */}
+            {isCaptain && (
+              <div className="relative sm:hidden">
+                <button
+                  onClick={() => setShowMobileCaptainMenu(!showMobileCaptainMenu)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                  {claimRequests.length > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                  )}
+                </button>
+
+                {showMobileCaptainMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-30">
+                    <div className="py-1">
+                      {claimRequests.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setShowClaimRequestsModal(true);
+                            setShowMobileCaptainMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          <Users className="w-4 h-4" />
+                          Claims
+                          <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                            {claimRequests.length}
+                          </span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          handleOpenGroupSettings();
+                          setShowMobileCaptainMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <Settings2 className="w-4 h-4" />
+                        Settings
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleOpenMetricsModal();
+                          setShowMobileCaptainMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <Settings className="w-4 h-4" />
+                        Metrics
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddMemberModal(true);
+                          setShowMobileCaptainMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        Add Member
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -244,12 +467,13 @@ export default function GroupPage() {
                 {group.name}
               </h1>
               {group.description && (
-                <p className="text-gray-600 dark:text-gray-400 mt-1">{group.description}</p>
+                <p className="text-gray-600 dark:text-gray-400 mt-1 hidden sm:block">{group.description}</p>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              {claimRequests.length > 0 && isCreator && (
+            {/* Desktop captain buttons */}
+            <div className="hidden sm:flex items-center gap-2">
+              {claimRequests.length > 0 && isCaptain && (
                 <Button
                   variant="outline"
                   onClick={() => setShowClaimRequestsModal(true)}
@@ -262,61 +486,76 @@ export default function GroupPage() {
                   </span>
                 </Button>
               )}
-              {isCreator && (
-                <Button onClick={() => setShowAddMemberModal(true)}>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Add Member
-                </Button>
+              {isCaptain && (
+                <>
+                  <Button variant="outline" onClick={handleOpenGroupSettings}>
+                    <Settings2 className="w-4 h-4 mr-2" />
+                    Settings
+                  </Button>
+                  <Button variant="outline" onClick={handleOpenMetricsModal}>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Metrics
+                  </Button>
+                  <Button onClick={() => setShowAddMemberModal(true)}>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Member
+                  </Button>
+                </>
               )}
             </div>
           </div>
         </div>
 
         {/* Unified control bar */}
-        <Card className="p-3 mb-6">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* View mode buttons */}
-            <div className="flex gap-1 border-r border-gray-200 dark:border-gray-700 pr-3">
+        <Card className="p-2 sm:p-3 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
+            {/* View mode buttons - full width on mobile */}
+            <div className="flex w-full sm:w-auto gap-1 sm:border-r border-gray-200 dark:border-gray-700 sm:pr-3">
               <Button
                 variant={viewMode === 'graph' ? 'primary' : 'ghost'}
                 onClick={() => setViewMode('graph')}
                 size="sm"
+                className="flex-1 sm:flex-initial justify-center"
               >
-                <BarChart3 className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Graph</span>
+                <BarChart3 className="w-4 h-4 mr-1 sm:mr-2" />
+                Scale
               </Button>
               <Button
                 variant={viewMode === 'table' ? 'primary' : 'ghost'}
                 onClick={() => setViewMode('table')}
                 size="sm"
+                className="flex-1 sm:flex-initial justify-center"
               >
-                <Table className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Data</span>
+                <Table className="w-4 h-4 mr-1 sm:mr-2" />
+                Data
               </Button>
               {canRate && (
                 <Button
                   variant={viewMode === 'rate' ? 'primary' : 'ghost'}
                   onClick={() => setViewMode('rate')}
                   size="sm"
+                  className="flex-1 sm:flex-initial justify-center"
                 >
-                  <SlidersHorizontal className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Rate</span>
+                  <SlidersHorizontal className="w-4 h-4 mr-1 sm:mr-2" />
+                  Rate
                 </Button>
               )}
             </div>
 
-            {/* Metric selectors - only show for graph view */}
+            {/* Metric selectors - only show for graph view, centered row on mobile */}
             {viewMode === 'graph' && group.metrics.length > 0 && (
-              <>
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center gap-3 w-full sm:w-auto">
+                <div className="flex items-center gap-1.5">
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     Y:
                   </label>
                   <select
                     value={yMetricId}
                     onChange={(e) => setYMetricId(e.target.value)}
-                    className="text-sm px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    disabled={isYAxisLocked}
+                    className="text-sm px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
+                    <option value="">None</option>
                     {metricOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
@@ -325,15 +564,17 @@ export default function GroupPage() {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
                     X:
                   </label>
                   <select
                     value={xMetricId}
                     onChange={(e) => setXMetricId(e.target.value)}
-                    className="text-sm px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    disabled={isXAxisLocked}
+                    className="text-sm px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
+                    <option value="">None</option>
                     {metricOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
@@ -341,26 +582,26 @@ export default function GroupPage() {
                     ))}
                   </select>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </Card>
 
         {/* Content */}
         {viewMode === 'graph' && (
-          <Card className="p-4 sm:p-6">
-            {/* Graph Title */}
-            <h2 className="text-center text-2xl md:text-3xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 dark:from-blue-400 dark:via-blue-300 dark:to-cyan-400 bg-clip-text text-transparent">
-                {group.metrics.find((m) => m.id === yMetricId)?.name || 'Y Metric'}
+          <Card className="p-2 sm:p-6 -mx-4 sm:mx-0 rounded-none sm:rounded-xl">
+            {/* Graph Title - hidden on mobile since axis labels are inline */}
+            <h2 className="hidden sm:block text-center text-2xl md:text-3xl font-bold mb-3">
+              <span className={yMetricId ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 dark:from-blue-400 dark:via-blue-300 dark:to-cyan-400 bg-clip-text text-transparent' : 'text-gray-400 dark:text-gray-500'}>
+                {group.metrics.find((m) => m.id === yMetricId)?.name || 'None'}
               </span>
               <span className="mx-3 text-gray-300 dark:text-gray-600 font-normal">×</span>
-              <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-400 dark:via-emerald-300 dark:to-teal-400 bg-clip-text text-transparent">
-                {group.metrics.find((m) => m.id === xMetricId)?.name || 'X Metric'}
+              <span className={xMetricId ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-400 dark:via-emerald-300 dark:to-teal-400 bg-clip-text text-transparent' : 'text-gray-400 dark:text-gray-500'}>
+                {group.metrics.find((m) => m.id === xMetricId)?.name || 'None'}
               </span>
             </h2>
-            <div className="w-full" style={{ paddingLeft: '3rem', paddingBottom: '2rem' }}>
-              <div className="w-full aspect-[4/3] lg:aspect-[16/10] max-h-[70vh]">
+            <div className="w-full sm:pl-12 sm:pb-8">
+              <div className="w-full aspect-square sm:aspect-[4/3] lg:aspect-[16/10] max-h-[70vh]">
                 <MemberGraph
                   members={visibleMembers}
                   metrics={group.metrics}
@@ -372,7 +613,7 @@ export default function GroupPage() {
                   existingRatings={ratings}
                   onSubmitRating={handleSubmitRating}
                   canRate={canRate}
-                  isCreator={isCreator}
+                  isCaptain={isCaptain}
                 />
               </div>
             </div>
@@ -393,8 +634,19 @@ export default function GroupPage() {
               existingRatings={ratings}
               onSubmitRating={handleSubmitRating}
               canRate={canRate}
-              isCreator={isCreator}
+              isCaptain={isCaptain}
+              captainControlEnabled={group.captainControlEnabled}
               onEditMember={handleEditMember}
+              onUploadMemberImage={handleUploadMemberImage}
+              onUploadCustomImage={async (memberId, file) => {
+                const imageUrl = await uploadMemberImage(groupId, file);
+                await updateMember(memberId, { customImageUrl: imageUrl });
+              }}
+              onRemoveMember={handleRemoveMember}
+              onCopyClaimLink={handleCopyClaimLink}
+              onSendClaimInvite={handleSendClaimInvite}
+              onToggleDisplayMode={handleToggleDisplayMode}
+              onUpdateCustomDisplay={handleUpdateCustomDisplay}
             />
           </Card>
         )}
@@ -419,11 +671,11 @@ export default function GroupPage() {
               No members yet
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {isCreator
+              {isCaptain
                 ? 'Add members to start rating and visualizing your group.'
-                : 'The group creator hasn\'t added any members yet.'}
+                : 'The group captain hasn\'t added any members yet.'}
             </p>
-            {isCreator && (
+            {isCaptain && (
               <Button onClick={() => setShowAddMemberModal(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
                 Add First Member
@@ -443,7 +695,8 @@ export default function GroupPage() {
           onSubmit={handleAddMember}
           onCancel={() => setShowAddMemberModal(false)}
           onUploadImage={(file) => uploadMemberImage(groupId, file)}
-          existingEmails={members.map((m) => m.email.toLowerCase())}
+          existingEmails={members.filter((m) => m.email).map((m) => m.email!.toLowerCase())}
+          groupId={groupId}
         />
       </Modal>
 
@@ -490,6 +743,241 @@ export default function GroupPage() {
               );
             })
           )}
+        </div>
+      </Modal>
+
+      {/* Metrics Management Modal */}
+      <Modal
+        isOpen={showMetricsModal}
+        onClose={() => setShowMetricsModal(false)}
+        title="Manage Metrics"
+        size="3xl"
+      >
+        <div className="max-h-[60vh] overflow-y-auto space-y-3">
+          {editingMetrics.map((metric, index) => {
+            // Combine prefix and suffix into a single value for the dropdown
+            const qualifierValue = metric.prefix || metric.suffix || '';
+            const handleQualifierChange = (value: string) => {
+              // Check if it's a prefix (currency symbols, #) or suffix (%, K, M, etc)
+              const prefixes = ['#', '$', '€', '£'];
+              if (prefixes.includes(value)) {
+                handleUpdateMetric(index, { prefix: value as MetricPrefix, suffix: '' as MetricSuffix });
+              } else {
+                handleUpdateMetric(index, { prefix: '' as MetricPrefix, suffix: value as MetricSuffix });
+              }
+            };
+
+            return (
+              <div
+                key={metric.id}
+                className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2"
+              >
+                {/* Row 1: Name, Min, Max, Format, Delete */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                  {/* Name - largest, takes remaining space */}
+                  <div className="flex-1 min-w-0 order-1">
+                    <input
+                      type="text"
+                      placeholder="Metric name"
+                      value={metric.name}
+                      onChange={(e) => handleUpdateMetric(index, { name: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900"
+                    />
+                  </div>
+
+                  {/* Min/Max/Format group - fixed widths */}
+                  <div className="flex items-center gap-2 order-2 sm:order-2">
+                    <div className="w-16 sm:w-20">
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        value={metric.minValue}
+                        onChange={(e) => handleUpdateMetric(index, { minValue: Number(e.target.value) })}
+                        className="w-full px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-center"
+                      />
+                    </div>
+                    <div className="w-16 sm:w-20">
+                      <input
+                        type="number"
+                        max={1000000}
+                        placeholder="Max"
+                        value={metric.maxValue}
+                        onChange={(e) => handleUpdateMetric(index, { maxValue: Math.min(1000000, Number(e.target.value)) })}
+                        className="w-full px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-center"
+                      />
+                    </div>
+                    <div className="w-16 sm:w-24">
+                      <select
+                        value={qualifierValue}
+                        onChange={(e) => handleQualifierChange(e.target.value)}
+                        className="w-full px-1 sm:px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900"
+                      >
+                        <option value="">-</option>
+                        <optgroup label="Prefix">
+                          <option value="#">#</option>
+                          <option value="$">$</option>
+                          <option value="€">€</option>
+                          <option value="£">£</option>
+                        </optgroup>
+                        <optgroup label="Suffix">
+                          <option value="%">%</option>
+                          <option value="K">K</option>
+                          <option value="M">M</option>
+                          <option value="B">B</option>
+                          <option value="T">T</option>
+                        </optgroup>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Delete button */}
+                  <button
+                    onClick={() => handleDeleteMetric(index)}
+                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg order-3"
+                    title="Remove metric"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Row 2: Description - full width */}
+                <input
+                  type="text"
+                  placeholder="Description (optional)"
+                  value={metric.description}
+                  onChange={(e) => handleUpdateMetric(index, { description: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900"
+                />
+              </div>
+            );
+          })}
+
+          {editingMetrics.length < 10 && (
+            <Button variant="outline" onClick={handleAddMetric} className="w-full">
+              + Add Metric
+            </Button>
+          )}
+
+          {/* Default Axis Selection */}
+          {editingMetrics.length > 0 && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-3">Default Graph Axes</p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">
+                    Default Y-Axis
+                  </label>
+                  <select
+                    value={editingDefaultYMetricId || ''}
+                    onChange={(e) => setEditingDefaultYMetricId(e.target.value || null)}
+                    className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-900"
+                  >
+                    <option value="">None</option>
+                    {editingMetrics.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name || 'Unnamed'}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">
+                    Default X-Axis
+                  </label>
+                  <select
+                    value={editingDefaultXMetricId || ''}
+                    onChange={(e) => setEditingDefaultXMetricId(e.target.value || null)}
+                    className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-900"
+                  >
+                    <option value="">None</option>
+                    {editingMetrics.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name || 'Unnamed'}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                These will be the initial axes shown when viewing the graph. Users can still change them.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <Button variant="outline" onClick={() => setShowMetricsModal(false)} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={handleSaveMetrics} className="flex-1">
+            Save Metrics
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Group Settings Modal */}
+      <Modal
+        isOpen={showGroupSettingsModal}
+        onClose={() => setShowGroupSettingsModal(false)}
+        title="Group Settings"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Group Name"
+            id="group-name"
+            value={editingGroupName}
+            onChange={(e) => setEditingGroupName(e.target.value)}
+            placeholder="Enter group name"
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Description
+            </label>
+            <textarea
+              value={editingGroupDescription}
+              onChange={(e) => setEditingGroupDescription(e.target.value)}
+              placeholder="Describe what this group is for..."
+              rows={3}
+              className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
+            />
+          </div>
+
+          {/* Captain Control Toggle */}
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Captain Control
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Always use custom display names and images set by captain
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingCaptainControlEnabled(!editingCaptainControlEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  editingCaptainControlEnabled
+                    ? 'bg-blue-600'
+                    : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    editingCaptainControlEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <Button variant="outline" onClick={() => setShowGroupSettingsModal(false)} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={handleSaveGroupSettings} loading={savingGroupSettings} className="flex-1">
+            Save Settings
+          </Button>
         </div>
       </Modal>
     </div>

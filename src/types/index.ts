@@ -1,12 +1,16 @@
 // Core data types for the Loyalty application
 
+export type MetricPrefix = '' | '#' | '$' | '€' | '£';
+export type MetricSuffix = '' | '%' | 'K' | 'M' | 'B' | 'T' | ' thousand' | ' million' | ' billion' | ' trillion';
+
 export interface User {
   id: string;
   clerkId: string | null; // null if placeholder user
   email: string;
   name: string;
   imageUrl: string | null;
-  placeholderImageUrl: string | null; // Set by group creator for unregistered users
+  placeholderImageUrl: string | null; // Set by group captain for unregistered users
+  bio: string | null; // User's personal bio/description
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,8 +19,13 @@ export interface Group {
   id: string;
   name: string;
   description: string;
-  creatorId: string; // Clerk user ID
+  captainId: string; // Clerk user ID of the group captain
   metrics: Metric[];
+  defaultYMetricId: string | null; // Default Y-axis metric (can be changed by viewer)
+  defaultXMetricId: string | null; // Default X-axis metric (can be changed by viewer)
+  lockedYMetricId: string | null; // If set, this metric is locked as the Y-axis (cannot be changed)
+  lockedXMetricId: string | null; // If set, this metric is locked as the X-axis (cannot be changed)
+  captainControlEnabled: boolean; // If true, captain can always edit member display (name/image) even after claimed
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,22 +35,33 @@ export interface Metric {
   name: string;
   description: string;
   order: number; // For display ordering
+  minValue: number; // Default 0
+  maxValue: number; // Default 100, max 1,000,000
+  prefix: MetricPrefix; // e.g., '$', '#'
+  suffix: MetricSuffix; // e.g., '%', 'K', 'M'
 }
+
+export type MemberDisplayMode = 'user' | 'custom';
 
 export interface GroupMember {
   id: string;
   groupId: string;
   userId: string; // Can be a placeholder user ID or actual user ID
   clerkId: string | null; // null if placeholder
-  email: string;
+  email: string | null; // Optional - not every member needs to be a real user
   name: string;
   imageUrl: string | null;
   placeholderImageUrl: string | null;
+  description: string | null; // Short description set by captain
   status: 'pending' | 'accepted' | 'declined' | 'placeholder';
   visibleInGraph: boolean; // Whether to show this member in the graph visualization
-  isCreator: boolean; // Whether this member is the group creator
+  isCaptain: boolean; // Whether this member is the group captain
   invitedAt: Date;
   respondedAt: Date | null;
+  // Captain-controlled display settings
+  displayMode: MemberDisplayMode; // 'user' = show actual profile, 'custom' = show captain-set values
+  customName: string | null; // Captain-set display name (used when displayMode is 'custom')
+  customImageUrl: string | null; // Captain-set display image (used when displayMode is 'custom')
 }
 
 export interface Rating {
@@ -50,7 +70,7 @@ export interface Rating {
   metricId: string;
   raterId: string; // Who is giving the rating (Clerk ID)
   targetMemberId: string; // Who is being rated (GroupMember ID)
-  value: number; // 0-100
+  value: number; // Between metric's minValue and maxValue
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,6 +105,19 @@ export interface Invitation {
   respondedAt: Date | null;
 }
 
+export interface ClaimToken {
+  id: string;
+  groupId: string;
+  memberId: string; // The placeholder member to claim
+  email: string | null; // Target email (null if shareable link)
+  token: string; // Unique token for the claim link
+  createdBy: string; // Captain's clerk ID
+  status: 'pending' | 'claimed' | 'expired';
+  createdAt: Date;
+  claimedAt: Date | null;
+  claimedBy: string | null; // Clerk ID of who claimed it
+}
+
 // Graph visualization types
 export interface PlottedMember {
   member: GroupMember;
@@ -117,3 +150,35 @@ export interface RatingForm {
   targetMemberId: string;
   value: number;
 }
+
+// Helper function to create default metric values
+export const createDefaultMetric = (name: string, description: string, order: number): Omit<Metric, 'id'> => ({
+  name,
+  description,
+  order,
+  minValue: 0,
+  maxValue: 100,
+  prefix: '',
+  suffix: '',
+});
+
+// Helper to format metric value with prefix/suffix
+export const formatMetricValue = (value: number, metric: Metric): string => {
+  return `${metric.prefix}${value}${metric.suffix}`;
+};
+
+// Helper to get display name for a member (respects displayMode)
+export const getMemberDisplayName = (member: GroupMember): string => {
+  if (member.displayMode === 'custom' && member.customName) {
+    return member.customName;
+  }
+  return member.name;
+};
+
+// Helper to get display image for a member (respects displayMode)
+export const getMemberDisplayImage = (member: GroupMember): string | null => {
+  if (member.displayMode === 'custom' && member.customImageUrl) {
+    return member.customImageUrl;
+  }
+  return member.imageUrl || member.placeholderImageUrl;
+};

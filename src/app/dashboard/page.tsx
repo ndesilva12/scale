@@ -53,23 +53,32 @@ export default function DashboardPage() {
   const handleCreateGroup = async (data: {
     name: string;
     description: string;
-    metrics: { name: string; description: string; order: number }[];
+    metrics: { name: string; description: string; order: number; minValue?: number; maxValue?: number; prefix?: string; suffix?: string }[];
   }) => {
     if (!user) return;
 
-    // Create the group
-    const group = await createGroup(user.id, data.name, data.description, data.metrics);
+    // Create the group - ensure metrics have all required fields with defaults
+    const metricsWithDefaults = data.metrics.map((m) => ({
+      name: m.name,
+      description: m.description,
+      order: m.order,
+      minValue: m.minValue ?? 0,
+      maxValue: m.maxValue ?? 100,
+      prefix: (m.prefix ?? '') as '' | '#' | '$' | '€' | '£',
+      suffix: (m.suffix ?? '') as '' | '%' | 'K' | 'M' | 'B' | 'T' | ' thousand' | ' million' | ' billion' | ' trillion',
+    }));
+    const group = await createGroup(user.id, data.name, data.description, metricsWithDefaults);
 
-    // Add the creator as the first member
+    // Add the captain as the first member
     await addMember(
       group.id,
       user.emailAddresses[0]?.emailAddress || '',
-      user.fullName || user.firstName || 'Creator',
+      user.fullName || user.firstName || 'Captain',
       null, // placeholderImageUrl
       user.id, // clerkId
       'accepted', // status
       user.imageUrl, // imageUrl (uses Google auth image if available)
-      true // isCreator
+      true // isCaptain
     );
 
     setShowCreateModal(false);
@@ -187,31 +196,54 @@ export default function DashboardPage() {
           </Card>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {groups.map((group) => (
-              <Link key={group.id} href={`/groups/${group.id}`}>
-                <Card className="p-6 hover:shadow-xl transition-shadow cursor-pointer h-full">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                        {group.name}
-                      </h3>
-                      {group.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
-                          {group.description}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
-                          {group.metrics.length} metrics
-                        </span>
+            {groups.map((group, index) => {
+              // Rotate through different gradient colors for visual variety
+              const gradients = [
+                'from-blue-500 to-cyan-500',
+                'from-purple-500 to-pink-500',
+                'from-emerald-500 to-teal-500',
+                'from-orange-500 to-amber-500',
+                'from-rose-500 to-red-500',
+                'from-indigo-500 to-violet-500',
+              ];
+              const gradient = gradients[index % gradients.length];
+
+              return (
+                <Link key={group.id} href={`/groups/${group.id}`}>
+                  <Card className="overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 cursor-pointer h-full border border-gray-200 dark:border-gray-700">
+                    {/* Gradient header accent */}
+                    <div className={`h-2 bg-gradient-to-r ${gradient}`} />
+
+                    <div className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center shadow-md`}>
+                              <Users className="w-5 h-5 text-white" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                              {group.name}
+                            </h3>
+                          </div>
+                          {group.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-4 ml-13">
+                              {group.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-600 dark:text-gray-400">
+                              <span className="font-medium">{group.metrics.length}</span>
+                              <span>metrics</span>
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0 mt-3" />
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                  </div>
-                </Card>
-              </Link>
-            ))}
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         )}
       </main>

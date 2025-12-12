@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { GroupMember, Metric, Rating } from '@/types';
 import Button from '@/components/ui/Button';
 import Slider from '@/components/ui/Slider';
@@ -25,6 +25,7 @@ export default function RatingForm({
   const [selectedMember, setSelectedMember] = useState<GroupMember | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Filter to only active members (accepted or placeholder with the current user's clerk ID)
   const activeMembers = members.filter(
@@ -45,29 +46,53 @@ export default function RatingForm({
             r.metricId === metric.id &&
             r.raterId === currentUserId
         );
-        memberRatings[metric.id] = existing?.value ?? 50;
+        // Use metric midpoint as default
+        const defaultValue = Math.round((metric.minValue + metric.maxValue) / 2);
+        memberRatings[metric.id] = existing?.value ?? defaultValue;
       });
       setRatings(memberRatings);
     }
   }, [selectedMember, existingRatings, metrics, currentUserId]);
 
-  const handleRatingChange = (metricId: string, value: number) => {
-    setRatings((prev) => ({ ...prev, [metricId]: value }));
-  };
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimeoutRef.current).forEach(clearTimeout);
+    };
+  }, []);
 
-  const handleSaveRating = async (metricId: string) => {
-    if (!selectedMember) return;
-
+  // Auto-save rating with debounce
+  const autoSaveRating = useCallback(async (metricId: string, memberId: string, value: number) => {
     setSaving(metricId);
     try {
-      await onSubmitRating(metricId, selectedMember.id, ratings[metricId]);
+      await onSubmitRating(metricId, memberId, value);
     } finally {
       setSaving(null);
+    }
+  }, [onSubmitRating]);
+
+  const handleRatingChange = (metricId: string, value: number) => {
+    setRatings((prev) => ({ ...prev, [metricId]: value }));
+
+    // Clear any existing timeout for this metric
+    if (saveTimeoutRef.current[metricId]) {
+      clearTimeout(saveTimeoutRef.current[metricId]);
+    }
+
+    // Set new timeout for auto-save (500ms debounce)
+    if (selectedMember) {
+      saveTimeoutRef.current[metricId] = setTimeout(() => {
+        autoSaveRating(metricId, selectedMember.id, value);
+      }, 500);
     }
   };
 
   const handleSaveAllRatings = async () => {
     if (!selectedMember) return;
+
+    // Clear all pending auto-saves
+    Object.values(saveTimeoutRef.current).forEach(clearTimeout);
+    saveTimeoutRef.current = {};
 
     setSaving('all');
     try {
@@ -144,44 +169,51 @@ export default function RatingForm({
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {selectedMember.clerkId === currentUserId
-                  ? 'Self-rating'
-                  : `Adjust the sliders to rate this member`}
+                  ? 'Self-rating - ratings auto-save as you adjust'
+                  : 'Adjust the sliders to rate - auto-saves as you drag'}
               </p>
             </div>
           </div>
 
           <div className="space-y-6">
-            {metrics.map((metric) => (
-              <div key={metric.id} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      {metric.name}
-                    </div>
-                    {metric.description && (
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {metric.description}
+            {metrics.map((metric) => {
+              const defaultValue = Math.round((metric.minValue + metric.maxValue) / 2);
+              return (
+                <div key={metric.id} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {metric.name}
                       </div>
-                    )}
+                      {metric.description && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {metric.description}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {metric.prefix}{ratings[metric.id] ?? defaultValue}{metric.suffix}
+                      </span>
+                      {saving === metric.id && (
+                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      )}
+                    </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleSaveRating(metric.id)}
-                    loading={saving === metric.id}
-                    disabled={saving !== null}
-                  >
-                    Save
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">{metric.prefix}{metric.minValue}{metric.suffix}</span>
+                    <Slider
+                      value={ratings[metric.id] ?? defaultValue}
+                      onChange={(e) => handleRatingChange(metric.id, Number(e.target.value))}
+                      min={metric.minValue}
+                      max={metric.maxValue}
+                      className="flex-1"
+                    />
+                    <span className="text-xs text-gray-400">{metric.prefix}{metric.maxValue}{metric.suffix}</span>
+                  </div>
                 </div>
-                <Slider
-                  value={ratings[metric.id] ?? 50}
-                  onChange={(e) => handleRatingChange(metric.id, Number(e.target.value))}
-                  min={0}
-                  max={100}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">

@@ -1,72 +1,38 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, Link as LinkIcon, X, UserPlus } from 'lucide-react';
+import { Upload, Link as LinkIcon, X, Copy, Check } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import Avatar from '@/components/ui/Avatar';
 
 type ImageSourceType = 'url' | 'upload';
 
-// Suggested members (mock accounts for demo/testing)
-const suggestedMembers = [
-  {
-    name: 'Sarah Johnson',
-    email: 'sarah.johnson@example.com',
-    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah&backgroundColor=ffdfbf',
-  },
-  {
-    name: 'Marcus Williams',
-    email: 'marcus.williams@example.com',
-    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Marcus&backgroundColor=c0aede',
-  },
-  {
-    name: 'Emily Davis',
-    email: 'emily.davis@example.com',
-    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emily&backgroundColor=d1f4d1',
-  },
-  {
-    name: 'James Taylor',
-    email: 'james.taylor@example.com',
-    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=James&backgroundColor=ffd5dc',
-  },
-  {
-    name: 'Olivia Martinez',
-    email: 'olivia.martinez@example.com',
-    imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Olivia&backgroundColor=fff4c0',
-  },
-];
-
 interface AddMemberFormProps {
-  onSubmit: (data: { email: string; name: string; placeholderImageUrl: string }) => Promise<void>;
+  onSubmit: (data: { email: string | null; name: string; placeholderImageUrl: string; description: string | null }) => Promise<void>;
   onCancel: () => void;
   onUploadImage?: (file: File) => Promise<string>;
   existingEmails?: string[];
+  groupId: string;
 }
 
-export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, existingEmails = [] }: AddMemberFormProps) {
+export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, existingEmails = [], groupId }: AddMemberFormProps) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [placeholderImageUrl, setPlaceholderImageUrl] = useState('');
   const [imageSourceType, setImageSourceType] = useState<ImageSourceType>('url');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filter out already added members
-  const availableSuggestions = suggestedMembers.filter(
-    (s) => !existingEmails.includes(s.email.toLowerCase())
-  );
-
-  const handleSelectSuggestion = (suggestion: typeof suggestedMembers[0]) => {
-    setName(suggestion.name);
-    setEmail(suggestion.email);
-    setPlaceholderImageUrl(suggestion.imageUrl);
-    setImageSourceType('url');
-    // Clear any file selection
-    handleClearFile();
+  const handleCopyInviteLink = async () => {
+    const inviteLink = `${window.location.origin}/join/${groupId}`;
+    await navigator.clipboard.writeText(inviteLink);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,21 +69,19 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
     e.preventDefault();
     setError(null);
 
-    if (!email.trim()) {
-      setError('Email is required');
-      return;
-    }
-
     if (!name.trim()) {
       setError('Name is required');
       return;
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
-      return;
+    // Email validation only if email is provided
+    const trimmedEmail = email.trim();
+    if (trimmedEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail)) {
+        setError('Please enter a valid email address');
+        return;
+      }
     }
 
     setLoading(true);
@@ -140,9 +104,10 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
       }
 
       await onSubmit({
-        email: email.trim().toLowerCase(),
+        email: trimmedEmail ? trimmedEmail.toLowerCase() : null,
         name: name.trim(),
         placeholderImageUrl: finalImageUrl,
+        description: description.trim() || null,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add member');
@@ -159,34 +124,32 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
         </div>
       )}
 
-      {/* Suggestions Section */}
-      {availableSuggestions.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Quick Add (Suggestions)
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {availableSuggestions.map((suggestion) => (
-              <button
-                key={suggestion.email}
-                type="button"
-                onClick={() => handleSelectSuggestion(suggestion)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
-              >
-                <Avatar
-                  src={suggestion.imageUrl}
-                  alt={suggestion.name}
-                  size="xs"
-                />
-                <span className="text-gray-700 dark:text-gray-300">{suggestion.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Copy Invite Link Section */}
+      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+          Share this link to let people join your group:
+        </p>
+        <button
+          type="button"
+          onClick={handleCopyInviteLink}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-blue-300 dark:border-blue-700 rounded-lg text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+        >
+          {linkCopied ? (
+            <>
+              <Check className="w-4 h-4 text-green-500" />
+              <span className="text-green-600 dark:text-green-400">Link Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-4 h-4" />
+              <span>Copy Invite Link</span>
+            </>
+          )}
+        </button>
+      </div>
 
       <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Or enter details manually:</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Or add a member directly:</p>
       </div>
 
       <Input
@@ -199,14 +162,28 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
       />
 
       <Input
-        label="Email Address"
+        label="Email Address (optional)"
         id="member-email"
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="john@example.com"
-        required
       />
+
+      <div>
+        <label htmlFor="member-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Short Description (optional)
+        </label>
+        <input
+          id="member-description"
+          type="text"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Team lead, Designer, etc."
+          maxLength={100}
+          className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
+        />
+      </div>
 
       {/* Image source type selector */}
       <div>
@@ -298,8 +275,9 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
       </div>
 
       <p className="text-sm text-gray-500 dark:text-gray-400">
-        An invitation will be sent to this email address. If they don&apos;t have an account yet,
-        they can sign up and claim this membership.
+        {email.trim()
+          ? "An invitation will be sent to this email address. If they don't have an account yet, they can sign up and claim this membership."
+          : "Members without an email can be converted to real users later using a claim link."}
       </p>
 
       <div className="flex gap-3 pt-2">

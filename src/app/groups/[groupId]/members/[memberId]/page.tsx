@@ -175,12 +175,22 @@ export default function MemberProfilePage() {
                 {member.name}
               </h1>
 
+              {member.description && (
+                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                  {member.description}
+                </p>
+              )}
+
               <div className="flex flex-col sm:flex-row items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-                <span className="flex items-center gap-1">
-                  <Mail className="w-4 h-4" />
-                  {member.email}
-                </span>
-                <span className="hidden sm:inline">•</span>
+                {member.email && (
+                  <>
+                    <span className="flex items-center gap-1">
+                      <Mail className="w-4 h-4" />
+                      {member.email}
+                    </span>
+                    <span className="hidden sm:inline">•</span>
+                  </>
+                )}
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
                   Joined {member.invitedAt.toLocaleDateString()}
@@ -283,21 +293,6 @@ export default function MemberProfilePage() {
             </div>
           )}
 
-          {/* Overall average */}
-          {group.metrics.length > 0 && scores.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Overall Average
-                </span>
-                <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                  {(
-                    scores.reduce((sum, s) => sum + s.averageValue, 0) / scores.length
-                  ).toFixed(1)}
-                </span>
-              </div>
-            </div>
-          )}
         </Card>
       </main>
     </div>
