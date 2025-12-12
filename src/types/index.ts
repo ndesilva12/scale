@@ -42,6 +42,7 @@ export interface Metric {
 }
 
 export type MemberDisplayMode = 'user' | 'custom';
+export type MemberRatingMode = 'captain' | 'group'; // 'captain' = only captain's rating counts, 'group' = average of all ratings
 
 export interface GroupMember {
   id: string;
@@ -62,6 +63,8 @@ export interface GroupMember {
   displayMode: MemberDisplayMode; // 'user' = show actual profile, 'custom' = show captain-set values
   customName: string | null; // Captain-set display name (used when displayMode is 'custom')
   customImageUrl: string | null; // Captain-set display image (used when displayMode is 'custom')
+  // Rating mode - determines how scores are calculated for this member
+  ratingMode: MemberRatingMode; // 'captain' = only captain's rating, 'group' = average of all ratings
 }
 
 export interface Rating {

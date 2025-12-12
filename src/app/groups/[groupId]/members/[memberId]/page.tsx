@@ -55,7 +55,8 @@ export default function MemberProfilePage() {
         const calculatedScores = calculateAggregatedScores(
           membersData,
           groupData.metrics,
-          ratingsData
+          ratingsData,
+          groupData.captainId
         );
         // Filter to just this member's scores
         setScores(calculatedScores.filter((s) => s.memberId === memberId));

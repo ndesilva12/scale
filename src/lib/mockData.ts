@@ -45,6 +45,7 @@ export const mockMembers: GroupMember[] = [
     displayMode: 'user',
     customName: null,
     customImageUrl: null,
+    ratingMode: 'group',
   },
   {
     id: 'member-2',
@@ -64,6 +65,7 @@ export const mockMembers: GroupMember[] = [
     displayMode: 'user',
     customName: null,
     customImageUrl: null,
+    ratingMode: 'group',
   },
   {
     id: 'member-3',
@@ -83,6 +85,7 @@ export const mockMembers: GroupMember[] = [
     displayMode: 'user',
     customName: null,
     customImageUrl: null,
+    ratingMode: 'group',
   },
   {
     id: 'member-4',
@@ -102,6 +105,7 @@ export const mockMembers: GroupMember[] = [
     displayMode: 'user',
     customName: null,
     customImageUrl: null,
+    ratingMode: 'group',
   },
   {
     id: 'member-5',
@@ -121,6 +125,7 @@ export const mockMembers: GroupMember[] = [
     displayMode: 'user',
     customName: null,
     customImageUrl: null,
+    ratingMode: 'group',
   },
   {
     id: 'member-6',
@@ -140,6 +145,7 @@ export const mockMembers: GroupMember[] = [
     displayMode: 'user',
     customName: null,
     customImageUrl: null,
+    ratingMode: 'group',
   },
   {
     id: 'member-7',
@@ -159,6 +165,7 @@ export const mockMembers: GroupMember[] = [
     displayMode: 'user',
     customName: null,
     customImageUrl: null,
+    ratingMode: 'group',
   },
 ];
 

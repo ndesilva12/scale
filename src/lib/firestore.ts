@@ -254,6 +254,7 @@ export async function addMember(
     displayMode: 'user', // Default to showing user's actual profile
     customName: null,
     customImageUrl: null,
+    ratingMode: 'group', // Default to group average ratings
   };
 
   await setDoc(doc(membersCollection, memberId), {
@@ -291,6 +292,7 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
       displayMode: data.displayMode ?? 'user',
       customName: data.customName ?? null,
       customImageUrl: data.customImageUrl ?? null,
+      ratingMode: data.ratingMode ?? 'group', // Default to group average
     } as GroupMember;
   });
 
@@ -313,6 +315,7 @@ export async function getMember(memberId: string): Promise<GroupMember | null> {
     displayMode: data.displayMode ?? 'user',
     customName: data.customName ?? null,
     customImageUrl: data.customImageUrl ?? null,
+    ratingMode: data.ratingMode ?? 'group', // Default to group average
   } as GroupMember;
 }
 
@@ -443,15 +446,22 @@ export async function getUserRatingsForGroup(
 export function calculateAggregatedScores(
   members: GroupMember[],
   metrics: Metric[],
-  ratings: Rating[]
+  ratings: Rating[],
+  captainClerkId?: string
 ): AggregatedScore[] {
   const scores: AggregatedScore[] = [];
 
   for (const member of members) {
     for (const metric of metrics) {
-      const memberRatings = ratings.filter(
+      let memberRatings = ratings.filter(
         (r) => r.targetMemberId === member.id && r.metricId === metric.id
       );
+
+      // If rating mode is 'captain', only use captain's rating
+      if (member.ratingMode === 'captain' && captainClerkId) {
+        memberRatings = memberRatings.filter((r) => r.raterId === captainClerkId);
+      }
+      // Otherwise (ratingMode === 'group'), use all ratings (default behavior)
 
       const totalRatings = memberRatings.length;
       const averageValue =
@@ -692,6 +702,7 @@ export function subscribeToMembers(
         displayMode: data.displayMode ?? 'user',
         customName: data.customName ?? null,
         customImageUrl: data.customImageUrl ?? null,
+        ratingMode: data.ratingMode ?? 'group', // Default to group average
       } as GroupMember;
     });
     // Sort so captain is first

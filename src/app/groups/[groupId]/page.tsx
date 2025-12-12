@@ -128,7 +128,7 @@ export default function GroupPage() {
   // Calculate scores when ratings or members change
   useEffect(() => {
     if (group && members.length > 0) {
-      const calculatedScores = calculateAggregatedScores(members, group.metrics, ratings);
+      const calculatedScores = calculateAggregatedScores(members, group.metrics, ratings, group.captainId);
       setScores(calculatedScores);
     }
   }, [group, members, ratings]);
@@ -340,6 +340,10 @@ export default function GroupPage() {
 
   const handleUpdateCustomDisplay = async (memberId: string, data: { customName?: string; customImageUrl?: string }) => {
     await updateMember(memberId, data);
+  };
+
+  const handleToggleRatingMode = async (memberId: string, mode: 'captain' | 'group') => {
+    await updateMember(memberId, { ratingMode: mode });
   };
 
   // Get visible members for the graph
@@ -705,6 +709,7 @@ export default function GroupPage() {
               onSendClaimInvite={handleSendClaimInvite}
               onToggleDisplayMode={handleToggleDisplayMode}
               onUpdateCustomDisplay={handleUpdateCustomDisplay}
+              onToggleRatingMode={handleToggleRatingMode}
             />
           </Card>
         )}
