@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import {
@@ -29,11 +29,12 @@ import MemberGraph from '@/components/graph/MemberGraph';
 import DataTable from '@/components/graph/DataTable';
 import AddMemberForm from '@/components/groups/AddMemberForm';
 import RatingForm from '@/components/groups/RatingForm';
-import { Group, GroupMember, Rating, AggregatedScore, ClaimRequest, Metric, MetricPrefix, MetricSuffix } from '@/types';
+import { Group, GroupMember, Rating, AggregatedScore, ClaimRequest, Metric, MetricPrefix, MetricSuffix, PendingItem } from '@/types';
 import {
   subscribeToGroup,
   subscribeToMembers,
   subscribeToRatings,
+  subscribeToPendingItems,
   addMember,
   createInvitation,
   submitRating,
@@ -46,6 +47,10 @@ import {
   updateGroup,
   removeMember,
   createClaimToken,
+  addCoCaptain,
+  removeCoCaptain,
+  submitPendingItem,
+  respondToPendingItem,
 } from '@/lib/firestore';
 import Input from '@/components/ui/Input';
 
@@ -54,6 +59,7 @@ type ViewMode = 'graph' | 'table' | 'rate';
 export default function GroupPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
   const groupId = params.groupId as string;
 
@@ -61,11 +67,17 @@ export default function GroupPage() {
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [claimRequests, setClaimRequests] = useState<ClaimRequest[]>([]);
+  const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const [scores, setScores] = useState<AggregatedScore[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>('graph');
+  // Initialize viewMode from URL params, default to 'graph'
+  const initialTab = searchParams.get('tab');
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    (initialTab === 'table' || initialTab === 'rate' || initialTab === 'graph') ? initialTab : 'graph'
+  );
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showClaimRequestsModal, setShowClaimRequestsModal] = useState(false);
+  const [showPendingItemsModal, setShowPendingItemsModal] = useState(false);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false);
   const [editingMetrics, setEditingMetrics] = useState<Metric[]>([]);
@@ -97,8 +109,20 @@ export default function GroupPage() {
     }
   }, [showYAxisDropdown, showXAxisDropdown]);
 
+  // Update URL when viewMode changes (preserves tab state for back navigation)
+  useEffect(() => {
+    const currentTab = searchParams.get('tab');
+    if (viewMode !== currentTab) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', viewMode);
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [viewMode, searchParams]);
+
   // Use captainId with backward compatibility for creatorId
-  const isCaptain = group?.captainId === user?.id;
+  // Also check if user is a co-captain
+  const isCaptain = group?.captainId === user?.id || (group?.coCaptainIds?.includes(user?.id || '') ?? false);
+  const isOriginalCaptain = group?.captainId === user?.id; // Only original captain can promote co-captains
   const currentMember = members.find((m) => m.clerkId === user?.id);
   const canRate = currentMember?.status === 'accepted';
 
@@ -132,11 +156,13 @@ export default function GroupPage() {
 
     const unsubscribeMembers = subscribeToMembers(groupId, setMembers);
     const unsubscribeRatings = subscribeToRatings(groupId, setRatings);
+    const unsubscribePendingItems = subscribeToPendingItems(groupId, setPendingItems);
 
     return () => {
       unsubscribeGroup();
       unsubscribeMembers();
       unsubscribeRatings();
+      unsubscribePendingItems();
     };
   }, [groupId]);
 
@@ -187,28 +213,42 @@ export default function GroupPage() {
   const handleAddMember = async (data: { email: string | null; name: string; placeholderImageUrl: string; description: string | null }) => {
     if (!user || !group) return;
 
-    const member = await addMember(
-      groupId,
-      data.email,
-      data.name,
-      data.placeholderImageUrl || null,
-      null, // clerkId
-      'placeholder', // status
-      null, // imageUrl
-      false, // isCaptain
-      data.description
-    );
-
-    // Only create invitation if email is provided
-    if (data.email) {
-      await createInvitation(
+    if (isCaptain) {
+      // Captain can add items directly
+      const member = await addMember(
         groupId,
-        group.name,
         data.email,
-        member.id,
+        data.name,
+        data.placeholderImageUrl || null,
+        null, // clerkId
+        'placeholder', // status
+        null, // imageUrl
+        false, // isCaptain
+        data.description
+      );
+
+      // Only create invitation if email is provided
+      if (data.email) {
+        await createInvitation(
+          groupId,
+          group.name,
+          data.email,
+          member.id,
+          user.id,
+          user.fullName || user.emailAddresses[0]?.emailAddress || 'Unknown'
+        );
+      }
+    } else {
+      // Non-captain submits item for approval
+      await submitPendingItem(
+        groupId,
+        data.name,
+        data.description,
+        data.placeholderImageUrl || null,
         user.id,
         user.fullName || user.emailAddresses[0]?.emailAddress || 'Unknown'
       );
+      alert('Your item has been submitted for captain approval.');
     }
 
     setShowAddMemberModal(false);
@@ -361,6 +401,29 @@ export default function GroupPage() {
     await updateMember(memberId, { ratingMode: mode });
   };
 
+  // Toggle co-captain status for a member
+  const handleToggleCoCaptain = async (memberId: string, clerkId: string, isCoCaptain: boolean) => {
+    if (!group) return;
+    if (isCoCaptain) {
+      // Remove co-captain
+      await removeCoCaptain(groupId, clerkId);
+    } else {
+      // Add co-captain
+      await addCoCaptain(groupId, clerkId);
+    }
+  };
+
+  // Handle pending item approval/rejection
+  const handleApprovePendingItem = async (item: PendingItem) => {
+    if (!user) return;
+    await respondToPendingItem(item.id, true, user.id, groupId);
+  };
+
+  const handleRejectPendingItem = async (item: PendingItem) => {
+    if (!user) return;
+    await respondToPendingItem(item.id, false, user.id, groupId);
+  };
+
   // Get visible members for the graph
   const visibleMembers = members.filter((m) => m.visibleInGraph);
 
@@ -401,10 +464,10 @@ export default function GroupPage() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col bg-gray-900 ${viewMode === 'graph' ? 'sm:min-h-screen' : ''}`}>
+    <div className={`flex flex-col bg-gray-900 ${viewMode === 'graph' ? 'h-[100dvh] sm:min-h-screen sm:h-auto overflow-hidden sm:overflow-visible' : 'min-h-screen'}`}>
       <Header />
 
-      <main className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-8 ${viewMode === 'graph' ? 'sm:py-8 flex flex-col' : ''}`}>
+      <main className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-2 sm:py-8 ${viewMode === 'graph' ? 'flex flex-col overflow-hidden' : ''}`}>
         {/* Mobile header - back + axis selectors + menu */}
         <div className="flex sm:hidden items-center justify-between mb-3">
           <Link
@@ -417,7 +480,7 @@ export default function GroupPage() {
           {/* Axis selectors in header - mobile */}
           {group.metrics.length > 0 && (
             <div className="flex-1 flex items-center justify-center">
-              <h2 className="text-base font-bold inline-flex items-center gap-x-1">
+              <h2 className="text-xl font-bold inline-flex items-center gap-x-1.5">
                 {/* Y Axis Selector */}
                 <div className="relative inline-block">
                   <button
@@ -427,14 +490,14 @@ export default function GroupPage() {
                       setShowXAxisDropdown(false);
                     }}
                     disabled={isYAxisLocked}
-                    className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[40px] justify-center pb-0.5"
+                    className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[50px] justify-center pb-0.5"
                   >
-                    <span className="text-white text-sm">
+                    <span className="text-white text-lg">
                       {yMetricId ? group.metrics.find((m) => m.id === yMetricId)?.name : '\u00A0'}
                     </span>
                   </button>
                   {showYAxisDropdown && (
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-40 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 py-1">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-40 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-[100] py-1">
                       <button
                         onClick={() => { setYMetricId(''); setShowYAxisDropdown(false); }}
                         className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-700 ${!yMetricId ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
@@ -454,7 +517,7 @@ export default function GroupPage() {
                   )}
                 </div>
 
-                <span className="text-gray-500 font-normal mx-0.5">×</span>
+                <span className="text-gray-500 font-normal mx-1 text-lg">×</span>
 
                 {/* X Axis Selector */}
                 <div className="relative inline-block">
@@ -465,14 +528,14 @@ export default function GroupPage() {
                       setShowYAxisDropdown(false);
                     }}
                     disabled={isXAxisLocked}
-                    className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[40px] justify-center pb-0.5"
+                    className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[50px] justify-center pb-0.5"
                   >
-                    <span className="text-white text-sm">
+                    <span className="text-white text-lg">
                       {xMetricId ? group.metrics.find((m) => m.id === xMetricId)?.name : '\u00A0'}
                     </span>
                   </button>
                   {showXAxisDropdown && (
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-40 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 py-1">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-40 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-[100] py-1">
                       <button
                         onClick={() => { setXMetricId(''); setShowXAxisDropdown(false); }}
                         className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-700 ${!xMetricId ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
@@ -495,15 +558,15 @@ export default function GroupPage() {
             </div>
           )}
 
-          {/* Mobile captain menu (three-dot) */}
-          {isCaptain && (
+          {/* Mobile menu (three-dot) - shown for all members */}
+          {canRate && (
             <div className="relative">
               <button
                 onClick={() => setShowMobileCaptainMenu(!showMobileCaptainMenu)}
                 className="p-2 text-gray-400 hover:bg-gray-800 rounded-lg"
               >
                 <MoreVertical className="w-5 h-5" />
-                {claimRequests.length > 0 && (
+                {isCaptain && (claimRequests.length > 0 || pendingItems.length > 0) && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-lime-500 rounded-full" />
                 )}
               </button>
@@ -511,41 +574,62 @@ export default function GroupPage() {
               {showMobileCaptainMenu && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-30">
                   <div className="py-1">
-                    {claimRequests.length > 0 && (
-                      <button
-                        onClick={() => {
-                          setShowClaimRequestsModal(true);
-                          setShowMobileCaptainMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
-                      >
-                        <Users className="w-4 h-4" />
-                        Claims
-                        <span className="ml-auto bg-lime-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                          {claimRequests.length}
-                        </span>
-                      </button>
+                    {/* Captain-only options */}
+                    {isCaptain && (
+                      <>
+                        {claimRequests.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setShowClaimRequestsModal(true);
+                              setShowMobileCaptainMenu(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
+                          >
+                            <Users className="w-4 h-4" />
+                            Claims
+                            <span className="ml-auto bg-lime-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                              {claimRequests.length}
+                            </span>
+                          </button>
+                        )}
+                        {pendingItems.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setShowPendingItemsModal(true);
+                              setShowMobileCaptainMenu(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                            Pending
+                            <span className="ml-auto bg-lime-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                              {pendingItems.length}
+                            </span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            handleOpenGroupSettings();
+                            setShowMobileCaptainMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
+                        >
+                          <Settings2 className="w-4 h-4" />
+                          Settings
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleOpenMetricsModal();
+                            setShowMobileCaptainMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
+                        >
+                          <Settings className="w-4 h-4" />
+                          Metrics
+                        </button>
+                      </>
                     )}
-                    <button
-                      onClick={() => {
-                        handleOpenGroupSettings();
-                        setShowMobileCaptainMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
-                    >
-                      <Settings2 className="w-4 h-4" />
-                      Settings
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleOpenMetricsModal();
-                        setShowMobileCaptainMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
-                    >
-                      <Settings className="w-4 h-4" />
-                      Metrics
-                    </button>
+                    {/* Add button - available to all members */}
                     <button
                       onClick={() => {
                         setShowAddMemberModal(true);
@@ -554,7 +638,7 @@ export default function GroupPage() {
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
                     >
                       <UserPlus className="w-4 h-4" />
-                      Add
+                      {isCaptain ? 'Add' : 'Suggest Item'}
                     </button>
                   </div>
                 </div>
@@ -564,18 +648,18 @@ export default function GroupPage() {
         </div>
 
         {/* Desktop header - back + axis selectors + captain buttons */}
-        <div className="hidden sm:flex items-center justify-between mb-4">
+        <div className="hidden sm:flex items-center justify-between mb-4 relative">
           <Link
             href="/dashboard"
-            className="inline-flex items-center text-sm text-gray-400 hover:text-white flex-shrink-0"
+            className="inline-flex items-center text-sm text-gray-400 hover:text-white flex-shrink-0 z-10"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back
           </Link>
 
-          {/* Axis selectors in header - desktop */}
+          {/* Axis selectors in header - desktop (absolutely centered) */}
           {group.metrics.length > 0 && (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               <h2 className="text-xl md:text-2xl lg:text-3xl font-bold inline-flex items-center gap-x-2">
                 {/* Y Axis Selector */}
                 <div className="relative inline-block">
@@ -593,7 +677,7 @@ export default function GroupPage() {
                     </span>
                   </button>
                   {showYAxisDropdown && (
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 py-1">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-[100] py-1">
                       <button
                         onClick={() => { setYMetricId(''); setShowYAxisDropdown(false); }}
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-700 ${!yMetricId ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
@@ -631,7 +715,7 @@ export default function GroupPage() {
                     </span>
                   </button>
                   {showXAxisDropdown && (
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 py-1">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-[100] py-1">
                       <button
                         onClick={() => { setXMetricId(''); setShowXAxisDropdown(false); }}
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-700 ${!xMetricId ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
@@ -654,48 +738,65 @@ export default function GroupPage() {
             </div>
           )}
 
-          {/* Desktop captain buttons */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {claimRequests.length > 0 && isCaptain && (
-              <Button
-                variant="outline"
-                onClick={() => setShowClaimRequestsModal(true)}
-                className="relative"
-              >
-                  <Users className="w-4 h-4 mr-2" />
-                  Claims
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-500 text-white text-xs rounded-full flex items-center justify-center">
-                    {claimRequests.length}
-                  </span>
-                </Button>
-              )}
-              {isCaptain && (
-                <>
-                  <Button variant="outline" onClick={handleOpenGroupSettings}>
-                    <Settings2 className="w-4 h-4 mr-2" />
-                    Settings
+          {/* Desktop buttons */}
+          <div className="flex items-center gap-2 flex-shrink-0 z-10">
+            {/* Captain-only buttons */}
+            {isCaptain && (
+              <>
+                {claimRequests.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowClaimRequestsModal(true)}
+                    className="relative"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Claims
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {claimRequests.length}
+                    </span>
                   </Button>
-                  <Button variant="outline" onClick={handleOpenMetricsModal}>
-                    <Settings className="w-4 h-4 mr-2" />
-                    Metrics
-                  </Button>
-                  <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
+                )}
+                {pendingItems.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowPendingItemsModal(true)}
+                    className="relative"
+                  >
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Add
+                    Pending
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {pendingItems.length}
+                    </span>
                   </Button>
-                </>
-              )}
-            </div>
+                )}
+                <Button variant="outline" onClick={handleOpenGroupSettings}>
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  Settings
+                </Button>
+                <Button variant="outline" onClick={handleOpenMetricsModal}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Metrics
+                </Button>
+              </>
+            )}
+            {/* Add/Suggest button - available to all members */}
+            {canRate && (
+              <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                {isCaptain ? 'Add' : 'Suggest'}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Control bar tabs - rounded, new selection style */}
-        <div className="bg-gray-900 rounded-t-xl -mx-4 sm:mx-0 p-1 border border-gray-700/50">
+        <div className="bg-gray-900 rounded-t-xl -mx-4 sm:mx-0 p-1">
           <div className="flex w-full gap-1">
             <button
               onClick={() => setViewMode('graph')}
-              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-lg ${
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-xl ${
                 viewMode === 'graph'
-                  ? 'bg-white/10 text-white border border-white/30'
+                  ? 'bg-white/15 text-white border border-white'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -704,9 +805,9 @@ export default function GroupPage() {
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-lg ${
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-xl ${
                 viewMode === 'table'
-                  ? 'bg-white/10 text-white border border-white/30'
+                  ? 'bg-white/15 text-white border border-white'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -716,9 +817,9 @@ export default function GroupPage() {
             {canRate && (
               <button
                 onClick={() => setViewMode('rate')}
-                className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-lg ${
+                className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-xl ${
                   viewMode === 'rate'
-                    ? 'bg-white/10 text-white border border-white/30'
+                    ? 'bg-white/15 text-white border border-white'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -731,9 +832,9 @@ export default function GroupPage() {
 
         {/* Content - attached to tabs above */}
         {viewMode === 'graph' && (
-          <div className="flex-1 flex flex-col -mx-4 sm:mx-0 bg-gray-900 rounded-b-xl border-x border-b border-gray-700/50">
-            <div className="flex-1 w-full p-2 sm:p-6 sm:pl-12 sm:pb-8">
-              <div className="w-full h-full min-h-[300px] sm:min-h-0 sm:aspect-[4/3] lg:aspect-[16/10] sm:max-h-[70vh]">
+          <div className="flex-1 flex flex-col -mx-4 sm:mx-0 bg-gray-900 rounded-b-xl min-h-0">
+            <div className="flex-1 w-full p-2 sm:p-6 sm:pl-12 sm:pb-8 min-h-0">
+              <div className="w-full h-full sm:min-h-0 sm:aspect-[4/3] lg:aspect-[16/10] sm:max-h-[70vh]">
                 <MemberGraph
                   members={visibleMembers}
                   metrics={group.metrics}
@@ -753,7 +854,7 @@ export default function GroupPage() {
         )}
 
         {viewMode === 'table' && (
-          <div className="bg-gray-900 rounded-b-xl -mx-4 sm:mx-0 p-2 sm:p-6 overflow-auto max-h-[calc(100vh-200px)] border-x border-b border-gray-700/50">
+          <div className="bg-gray-900 rounded-b-xl -mx-4 sm:mx-0 p-2 sm:p-6 overflow-auto max-h-[calc(100vh-200px)]">
             <DataTable
               members={members}
               metrics={group.metrics}
@@ -767,7 +868,9 @@ export default function GroupPage() {
               onSubmitRating={handleSubmitRating}
               canRate={canRate}
               isCaptain={isCaptain}
+              isOriginalCaptain={isOriginalCaptain}
               captainControlEnabled={group.captainControlEnabled}
+              coCaptainIds={group.coCaptainIds}
               onEditMember={handleEditMember}
               onUploadMemberImage={handleUploadMemberImage}
               onUploadCustomImage={async (memberId, file) => {
@@ -780,12 +883,13 @@ export default function GroupPage() {
               onToggleDisplayMode={handleToggleDisplayMode}
               onUpdateCustomDisplay={handleUpdateCustomDisplay}
               onToggleRatingMode={handleToggleRatingMode}
+              onToggleCoCaptain={handleToggleCoCaptain}
             />
           </div>
         )}
 
         {viewMode === 'rate' && canRate && (
-          <div className="bg-gray-900 rounded-b-xl -mx-4 sm:mx-0 p-4 sm:p-6 border-x border-b border-gray-700/50">
+          <div className="bg-gray-900 rounded-b-xl -mx-4 sm:mx-0 p-4 sm:p-6">
             <RatingForm
               members={members}
               metrics={group.metrics}
@@ -823,7 +927,7 @@ export default function GroupPage() {
       <Modal
         isOpen={showAddMemberModal}
         onClose={() => setShowAddMemberModal(false)}
-        title="Add Item"
+        title={isCaptain ? 'Add Item' : 'Suggest Item'}
       >
         <AddMemberForm
           onSubmit={handleAddMember}
@@ -876,6 +980,63 @@ export default function GroupPage() {
                 </div>
               );
             })
+          )}
+        </div>
+      </Modal>
+
+      {/* Pending Items Modal */}
+      <Modal
+        isOpen={showPendingItemsModal}
+        onClose={() => setShowPendingItemsModal(false)}
+        title="Pending Item Suggestions"
+      >
+        <div className="space-y-4">
+          {pendingItems.length === 0 ? (
+            <p className="text-gray-500 dark:text-gray-400 text-center py-4">
+              No pending item suggestions
+            </p>
+          ) : (
+            pendingItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  {item.imageUrl && (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  )}
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {item.name}
+                    </p>
+                    {item.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">
+                        {item.description}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-500">
+                      Suggested by {item.submittedByName} on {item.createdAt.toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRejectPendingItem(item)}
+                  >
+                    Reject
+                  </Button>
+                  <Button size="sm" onClick={() => handleApprovePendingItem(item)}>
+                    Approve
+                  </Button>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </Modal>

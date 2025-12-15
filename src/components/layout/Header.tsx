@@ -18,7 +18,7 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 py-2">
             <Image
-              src="/scalegreen.png"
+              src="/scalem.png"
               alt="Scale"
               width={225}
               height={60}

@@ -92,8 +92,8 @@ export default function Home() {
             </div>
 
             <div className="text-center">
-              <div className="w-14 h-14 mx-auto mb-4 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
-                <Eye className="w-7 h-7 text-orange-600 dark:text-orange-400" />
+              <div className="w-14 h-14 mx-auto mb-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
+                <Eye className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Visualize Results

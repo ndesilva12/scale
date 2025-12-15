@@ -20,7 +20,9 @@ interface DataTableProps {
   onSubmitRating?: (metricId: string, targetMemberId: string, value: number) => Promise<void>;
   canRate?: boolean;
   isCaptain?: boolean;
+  isOriginalCaptain?: boolean;
   captainControlEnabled?: boolean;
+  coCaptainIds?: string[];
   onEditMember?: (memberId: string, data: { name: string; email: string; imageUrl?: string }) => Promise<void>;
   onUploadMemberImage?: (memberId: string, file: File) => Promise<void>;
   onUploadCustomImage?: (memberId: string, file: File) => Promise<void>;
@@ -30,6 +32,7 @@ interface DataTableProps {
   onToggleDisplayMode?: (memberId: string, mode: MemberDisplayMode) => Promise<void>;
   onUpdateCustomDisplay?: (memberId: string, data: { customName?: string; customImageUrl?: string }) => Promise<void>;
   onToggleRatingMode?: (memberId: string, mode: MemberRatingMode) => Promise<void>;
+  onToggleCoCaptain?: (memberId: string, clerkId: string, isCoCaptain: boolean) => Promise<void>;
 }
 
 export default function DataTable({
@@ -45,7 +48,9 @@ export default function DataTable({
   onSubmitRating,
   canRate = false,
   isCaptain = false,
+  isOriginalCaptain = false,
   captainControlEnabled = false,
+  coCaptainIds = [],
   onEditMember,
   onUploadMemberImage,
   onUploadCustomImage,
@@ -55,6 +60,7 @@ export default function DataTable({
   onToggleDisplayMode,
   onUpdateCustomDisplay,
   onToggleRatingMode,
+  onToggleCoCaptain,
 }: DataTableProps) {
   const [editingCell, setEditingCell] = useState<{ memberId: string; metricId: string } | null>(null);
   const [editValue, setEditValue] = useState<number>(50);
@@ -316,7 +322,7 @@ export default function DataTable({
         <thead className="sticky top-0 z-20 bg-gray-800">
           <tr className="border-b border-gray-700">
             <th
-              className="text-left py-2 sm:py-3 px-2 sm:px-3 font-semibold text-white cursor-pointer hover:bg-gray-700 transition-colors sticky left-0 bg-gray-800 z-10 min-w-[100px] sm:min-w-[140px]"
+              className="text-left py-2 sm:py-3 px-2 sm:px-3 font-semibold text-white cursor-pointer hover:bg-gray-700 transition-colors sticky left-0 top-0 bg-gray-800 z-30 min-w-[80px] sm:min-w-[140px]"
               onClick={() => handleSort('name')}
             >
               <div className="flex items-center gap-1">
@@ -329,7 +335,7 @@ export default function DataTable({
             {metrics.map((metric) => (
               <th
                 key={metric.id}
-                className="text-center py-2 sm:py-3 px-2 sm:px-4 font-semibold text-white min-w-[70px] sm:min-w-[100px] cursor-pointer hover:bg-gray-700 transition-colors"
+                className="text-center py-2 sm:py-3 px-2 sm:px-4 font-semibold text-white min-w-[50px] sm:min-w-[100px] cursor-pointer hover:bg-gray-700 transition-colors sticky top-0 bg-gray-800"
                 title={metric.description}
                 onClick={() => handleSort(metric.id)}
               >
@@ -343,7 +349,7 @@ export default function DataTable({
             ))}
             {/* Actions header at the end */}
             {isCaptain && (
-              <th className="text-center py-2 sm:py-3 px-2 font-semibold text-white w-16 sm:w-20">
+              <th className="text-center py-2 sm:py-3 px-2 font-semibold text-white w-16 sm:w-20 sticky top-0 bg-gray-800">
                 <Settings className="w-4 h-4 mx-auto text-gray-400" />
               </th>
             )}
@@ -429,12 +435,18 @@ export default function DataTable({
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-white text-xs sm:text-sm truncate flex items-center gap-1">
-                        <span className="truncate">{getMemberDisplayName(member)}</span>
+                      <div className="font-medium text-white text-xs sm:text-sm flex items-center gap-1">
+                        {/* Mobile: two-line name display */}
+                        <span className="sm:hidden flex flex-col leading-tight">
+                          <span className="truncate">{getMemberDisplayName(member).split(' ')[0]}</span>
+                          <span className="truncate text-gray-300">{getMemberDisplayName(member).split(' ').slice(1).join(' ')}</span>
+                        </span>
+                        {/* Desktop: single line */}
+                        <span className="hidden sm:inline truncate">{getMemberDisplayName(member)}</span>
                         {member.isCaptain && <Anchor className="w-3 h-3 text-lime-500 flex-shrink-0" />}
-                      </div>
-                      <div className="text-[10px] sm:text-xs text-gray-400 truncate">
-                        {member.isCaptain ? 'Captain' : member.status === 'placeholder' ? 'Pending' : 'Active'}
+                        {!member.isCaptain && member.clerkId && coCaptainIds.includes(member.clerkId) && (
+                          <Anchor className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                        )}
                       </div>
                     </div>
                   </Link>
@@ -462,9 +474,28 @@ export default function DataTable({
                           className="w-full h-2 accent-lime-500"
                         />
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-white">
-                            {metric.prefix}{editValue}{metric.suffix}
-                          </span>
+                          <span className="text-gray-400 text-xs">{metric.prefix}</span>
+                          <input
+                            type="number"
+                            min={metric.minValue}
+                            max={metric.maxValue}
+                            value={editValue}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const clampedVal = Math.min(Math.max(val, metric.minValue), metric.maxValue);
+                              handleSliderChange(clampedVal);
+                            }}
+                            onBlur={(e) => {
+                              // Clamp value on blur in case user typed outside range
+                              const val = Number(e.target.value);
+                              const clampedVal = Math.min(Math.max(val, metric.minValue), metric.maxValue);
+                              if (val !== clampedVal) {
+                                handleSliderChange(clampedVal);
+                              }
+                            }}
+                            className="w-16 px-2 py-1 text-sm font-medium text-white text-center bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-lime-500"
+                          />
+                          <span className="text-gray-400 text-xs">{metric.suffix}</span>
                           {saving && (
                             <div className="w-3 h-3 border-2 border-lime-500 border-t-transparent rounded-full animate-spin" />
                           )}
@@ -700,6 +731,32 @@ export default function DataTable({
                       {member.ratingMode === 'captain'
                         ? "Only your rating counts for this item"
                         : "Average of all group ratings"}
+                    </p>
+                  </div>
+                )}
+
+                {/* Co-captain toggle - only visible to original captain for claimed users */}
+                {isOriginalCaptain && member.clerkId && !member.isCaptain && onToggleCoCaptain && (
+                  <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Co-Captain</p>
+                    <button
+                      onClick={() => {
+                        const isCoCaptain = coCaptainIds.includes(member.clerkId!);
+                        onToggleCoCaptain(member.id, member.clerkId!, isCoCaptain);
+                      }}
+                      className={`w-full px-2 py-1.5 text-xs rounded flex items-center justify-center gap-1 ${
+                        coCaptainIds.includes(member.clerkId)
+                          ? 'bg-lime-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                      }`}
+                    >
+                      <Anchor className="w-3 h-3" />
+                      {coCaptainIds.includes(member.clerkId) ? 'Remove Co-Captain' : 'Make Co-Captain'}
+                    </button>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+                      {coCaptainIds.includes(member.clerkId)
+                        ? "Has full captain permissions"
+                        : "Grant captain permissions to this user"}
                     </p>
                   </div>
                 )}

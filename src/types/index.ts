@@ -20,6 +20,7 @@ export interface Group {
   name: string;
   description: string;
   captainId: string; // Clerk user ID of the group captain
+  coCaptainIds: string[]; // Clerk user IDs of co-captains (have same permissions as captain)
   metrics: Metric[];
   defaultYMetricId: string | null; // Default Y-axis metric (can be changed by viewer)
   defaultXMetricId: string | null; // Default X-axis metric (can be changed by viewer)
@@ -119,6 +120,21 @@ export interface ClaimToken {
   createdAt: Date;
   claimedAt: Date | null;
   claimedBy: string | null; // Clerk ID of who claimed it
+}
+
+// Pending item submitted by non-captain, awaiting approval
+export interface PendingItem {
+  id: string;
+  groupId: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  submittedBy: string; // Clerk ID of who submitted it
+  submittedByName: string; // Name of submitter for display
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Date;
+  respondedAt: Date | null;
+  respondedBy: string | null; // Clerk ID of captain who responded
 }
 
 // Graph visualization types

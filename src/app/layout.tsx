@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     siteName: "Scale",
     images: [
       {
-        url: "/scalegreen1.png",
+        url: "/scalewide.png",
         width: 1200,
         height: 630,
         alt: "Scale Logo",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Scale - Visual Group Ratings",
     description: "A visual tool for plotting and rating group items on customizable metrics",
-    images: ["/scalegreen1.png"],
+    images: ["/scalewide.png"],
   },
 };
 

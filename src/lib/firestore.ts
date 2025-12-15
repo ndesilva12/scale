@@ -26,6 +26,7 @@ import {
   ClaimRequest,
   ClaimToken,
   Metric,
+  PendingItem,
   createDefaultMetric,
 } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
@@ -37,6 +38,7 @@ const ratingsCollection = collection(db, 'ratings');
 const invitationsCollection = collection(db, 'invitations');
 const claimRequestsCollection = collection(db, 'claimRequests');
 const claimTokensCollection = collection(db, 'claimTokens');
+const pendingItemsCollection = collection(db, 'pendingItems');
 
 // Helper to convert Firestore timestamps
 const convertTimestamp = (timestamp: Timestamp | Date | null): Date => {
@@ -72,6 +74,7 @@ export async function createGroup(
     name,
     description,
     captainId,
+    coCaptainIds: [],
     metrics: metricsWithIds,
     defaultYMetricId: metricsWithIds.length > 1 ? metricsWithIds[1].id : (metricsWithIds[0]?.id || null),
     defaultXMetricId: metricsWithIds[0]?.id || null,
@@ -111,6 +114,7 @@ export async function getGroup(groupId: string): Promise<Group | null> {
     ...data,
     id: docSnap.id,
     captainId,
+    coCaptainIds: data.coCaptainIds ?? [],
     metrics,
     defaultYMetricId: data.defaultYMetricId ?? null,
     defaultXMetricId: data.defaultXMetricId ?? null,
@@ -126,16 +130,19 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
   // Get groups where user is captain (check both old and new field names for backward compatibility)
   const captainQuery = query(groupsCollection, where('captainId', '==', clerkId));
   const creatorQuery = query(groupsCollection, where('creatorId', '==', clerkId));
+  // Also get groups where user is a co-captain
+  const coCaptainQuery = query(groupsCollection, where('coCaptainIds', 'array-contains', clerkId));
 
-  const [captainDocs, creatorDocs] = await Promise.all([
+  const [captainDocs, creatorDocs, coCaptainDocs] = await Promise.all([
     getDocs(captainQuery),
     getDocs(creatorQuery),
+    getDocs(coCaptainQuery),
   ]);
 
   const groupMap = new Map<string, Group>();
 
-  // Process both queries and deduplicate
-  [...captainDocs.docs, ...creatorDocs.docs].forEach((docSnap) => {
+  // Process all queries and deduplicate
+  [...captainDocs.docs, ...creatorDocs.docs, ...coCaptainDocs.docs].forEach((docSnap) => {
     if (groupMap.has(docSnap.id)) return;
 
     const data = docSnap.data();
@@ -152,6 +159,7 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
       ...data,
       id: docSnap.id,
       captainId,
+      coCaptainIds: data.coCaptainIds ?? [],
       metrics,
       defaultYMetricId: data.defaultYMetricId ?? null,
       defaultXMetricId: data.defaultXMetricId ?? null,
@@ -187,10 +195,26 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
 
 export async function updateGroup(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'defaultYMetricId' | 'defaultXMetricId' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled'>>
+  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'defaultYMetricId' | 'defaultXMetricId' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled' | 'coCaptainIds'>>
 ): Promise<void> {
   await updateDoc(doc(groupsCollection, groupId), {
     ...updates,
+    updatedAt: Timestamp.fromDate(new Date()),
+  });
+}
+
+// Add a co-captain to a group
+export async function addCoCaptain(groupId: string, clerkId: string): Promise<void> {
+  await updateDoc(doc(groupsCollection, groupId), {
+    coCaptainIds: arrayUnion(clerkId),
+    updatedAt: Timestamp.fromDate(new Date()),
+  });
+}
+
+// Remove a co-captain from a group
+export async function removeCoCaptain(groupId: string, clerkId: string): Promise<void> {
+  await updateDoc(doc(groupsCollection, groupId), {
+    coCaptainIds: arrayRemove(clerkId),
     updatedAt: Timestamp.fromDate(new Date()),
   });
 }
@@ -667,6 +691,7 @@ export function subscribeToGroup(
       ...data,
       id: docSnap.id,
       captainId,
+      coCaptainIds: data.coCaptainIds ?? [],
       metrics,
       defaultYMetricId: data.defaultYMetricId ?? null,
       defaultXMetricId: data.defaultXMetricId ?? null,
@@ -864,5 +889,120 @@ export async function claimProfile(
 export async function invalidateClaimToken(tokenId: string): Promise<void> {
   await updateDoc(doc(claimTokensCollection, tokenId), {
     status: 'expired',
+  });
+}
+
+// ============ PENDING ITEM OPERATIONS ============
+
+export async function submitPendingItem(
+  groupId: string,
+  name: string,
+  description: string | null,
+  imageUrl: string | null,
+  submittedBy: string,
+  submittedByName: string
+): Promise<PendingItem> {
+  const itemId = uuidv4();
+  const now = new Date();
+
+  const pendingItem: PendingItem = {
+    id: itemId,
+    groupId,
+    name,
+    description,
+    imageUrl,
+    submittedBy,
+    submittedByName,
+    status: 'pending',
+    createdAt: now,
+    respondedAt: null,
+    respondedBy: null,
+  };
+
+  await setDoc(doc(pendingItemsCollection, itemId), {
+    ...pendingItem,
+    createdAt: Timestamp.fromDate(now),
+  });
+
+  return pendingItem;
+}
+
+export async function getPendingItems(groupId: string): Promise<PendingItem[]> {
+  const q = query(
+    pendingItemsCollection,
+    where('groupId', '==', groupId),
+    where('status', '==', 'pending')
+  );
+  const docs = await getDocs(q);
+
+  return docs.docs.map((docSnap) => {
+    const data = docSnap.data();
+    return {
+      ...data,
+      id: docSnap.id,
+      createdAt: convertTimestamp(data.createdAt),
+      respondedAt: data.respondedAt ? convertTimestamp(data.respondedAt) : null,
+    } as PendingItem;
+  });
+}
+
+export async function respondToPendingItem(
+  itemId: string,
+  approve: boolean,
+  respondedBy: string,
+  groupId: string
+): Promise<GroupMember | null> {
+  const itemDoc = await getDoc(doc(pendingItemsCollection, itemId));
+  if (!itemDoc.exists()) throw new Error('Pending item not found');
+
+  const itemData = itemDoc.data() as PendingItem;
+  const now = new Date();
+
+  // Update pending item status
+  await updateDoc(doc(pendingItemsCollection, itemId), {
+    status: approve ? 'approved' : 'rejected',
+    respondedAt: Timestamp.fromDate(now),
+    respondedBy,
+  });
+
+  if (approve) {
+    // Create actual member from pending item
+    const member = await addMember(
+      groupId,
+      null, // email
+      itemData.name,
+      itemData.imageUrl, // placeholderImageUrl
+      null, // clerkId
+      'placeholder', // status
+      null, // imageUrl
+      false, // isCaptain
+      itemData.description
+    );
+    return member;
+  }
+
+  return null;
+}
+
+export function subscribeToPendingItems(
+  groupId: string,
+  callback: (items: PendingItem[]) => void
+): () => void {
+  const q = query(
+    pendingItemsCollection,
+    where('groupId', '==', groupId),
+    where('status', '==', 'pending')
+  );
+  return onSnapshot(q, (snapshot) => {
+    const items = snapshot.docs.map((docSnap) => {
+      const data = docSnap.data();
+      return {
+        ...data,
+        id: docSnap.id,
+        createdAt: convertTimestamp(data.createdAt),
+        respondedAt: data.respondedAt ? convertTimestamp(data.respondedAt) : null,
+      } as PendingItem;
+    });
+    callback(items);
   });
 }
