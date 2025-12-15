@@ -20,6 +20,7 @@ export interface Group {
   name: string;
   description: string;
   captainId: string; // Clerk user ID of the group captain
+  coCaptainIds: string[]; // Clerk user IDs of co-captains (have same permissions as captain)
   metrics: Metric[];
   defaultYMetricId: string | null; // Default Y-axis metric (can be changed by viewer)
   defaultXMetricId: string | null; // Default X-axis metric (can be changed by viewer)

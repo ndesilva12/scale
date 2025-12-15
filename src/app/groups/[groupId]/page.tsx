@@ -46,6 +46,8 @@ import {
   updateGroup,
   removeMember,
   createClaimToken,
+  addCoCaptain,
+  removeCoCaptain,
 } from '@/lib/firestore';
 import Input from '@/components/ui/Input';
 
@@ -98,7 +100,9 @@ export default function GroupPage() {
   }, [showYAxisDropdown, showXAxisDropdown]);
 
   // Use captainId with backward compatibility for creatorId
-  const isCaptain = group?.captainId === user?.id;
+  // Also check if user is a co-captain
+  const isCaptain = group?.captainId === user?.id || (group?.coCaptainIds?.includes(user?.id || '') ?? false);
+  const isOriginalCaptain = group?.captainId === user?.id; // Only original captain can promote co-captains
   const currentMember = members.find((m) => m.clerkId === user?.id);
   const canRate = currentMember?.status === 'accepted';
 
@@ -361,6 +365,18 @@ export default function GroupPage() {
     await updateMember(memberId, { ratingMode: mode });
   };
 
+  // Toggle co-captain status for a member
+  const handleToggleCoCaptain = async (memberId: string, clerkId: string, isCoCaptain: boolean) => {
+    if (!group) return;
+    if (isCoCaptain) {
+      // Remove co-captain
+      await removeCoCaptain(groupId, clerkId);
+    } else {
+      // Add co-captain
+      await addCoCaptain(groupId, clerkId);
+    }
+  };
+
   // Get visible members for the graph
   const visibleMembers = members.filter((m) => m.visibleInGraph);
 
@@ -417,7 +433,7 @@ export default function GroupPage() {
           {/* Axis selectors in header - mobile */}
           {group.metrics.length > 0 && (
             <div className="flex-1 flex items-center justify-center">
-              <h2 className="text-base font-bold inline-flex items-center gap-x-1">
+              <h2 className="text-xl font-bold inline-flex items-center gap-x-1.5">
                 {/* Y Axis Selector */}
                 <div className="relative inline-block">
                   <button
@@ -427,9 +443,9 @@ export default function GroupPage() {
                       setShowXAxisDropdown(false);
                     }}
                     disabled={isYAxisLocked}
-                    className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[40px] justify-center pb-0.5"
+                    className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[50px] justify-center pb-0.5"
                   >
-                    <span className="text-white text-sm">
+                    <span className="text-white text-lg">
                       {yMetricId ? group.metrics.find((m) => m.id === yMetricId)?.name : '\u00A0'}
                     </span>
                   </button>
@@ -454,7 +470,7 @@ export default function GroupPage() {
                   )}
                 </div>
 
-                <span className="text-gray-500 font-normal mx-0.5">×</span>
+                <span className="text-gray-500 font-normal mx-1 text-lg">×</span>
 
                 {/* X Axis Selector */}
                 <div className="relative inline-block">
@@ -465,9 +481,9 @@ export default function GroupPage() {
                       setShowYAxisDropdown(false);
                     }}
                     disabled={isXAxisLocked}
-                    className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[40px] justify-center pb-0.5"
+                    className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[50px] justify-center pb-0.5"
                   >
-                    <span className="text-white text-sm">
+                    <span className="text-white text-lg">
                       {xMetricId ? group.metrics.find((m) => m.id === xMetricId)?.name : '\u00A0'}
                     </span>
                   </button>
@@ -564,18 +580,18 @@ export default function GroupPage() {
         </div>
 
         {/* Desktop header - back + axis selectors + captain buttons */}
-        <div className="hidden sm:flex items-center justify-between mb-4">
+        <div className="hidden sm:flex items-center justify-between mb-4 relative">
           <Link
             href="/dashboard"
-            className="inline-flex items-center text-sm text-gray-400 hover:text-white flex-shrink-0"
+            className="inline-flex items-center text-sm text-gray-400 hover:text-white flex-shrink-0 z-10"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back
           </Link>
 
-          {/* Axis selectors in header - desktop */}
+          {/* Axis selectors in header - desktop (absolutely centered) */}
           {group.metrics.length > 0 && (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               <h2 className="text-xl md:text-2xl lg:text-3xl font-bold inline-flex items-center gap-x-2">
                 {/* Y Axis Selector */}
                 <div className="relative inline-block">
@@ -655,7 +671,7 @@ export default function GroupPage() {
           )}
 
           {/* Desktop captain buttons */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 z-10">
             {claimRequests.length > 0 && isCaptain && (
               <Button
                 variant="outline"
@@ -693,9 +709,9 @@ export default function GroupPage() {
           <div className="flex w-full gap-1">
             <button
               onClick={() => setViewMode('graph')}
-              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-lg ${
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-xl ${
                 viewMode === 'graph'
-                  ? 'bg-white/10 text-white border border-white/30'
+                  ? 'bg-white/15 text-white border border-white'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -704,9 +720,9 @@ export default function GroupPage() {
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-lg ${
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-xl ${
                 viewMode === 'table'
-                  ? 'bg-white/10 text-white border border-white/30'
+                  ? 'bg-white/15 text-white border border-white'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -716,9 +732,9 @@ export default function GroupPage() {
             {canRate && (
               <button
                 onClick={() => setViewMode('rate')}
-                className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-lg ${
+                className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-xl ${
                   viewMode === 'rate'
-                    ? 'bg-white/10 text-white border border-white/30'
+                    ? 'bg-white/15 text-white border border-white'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -767,7 +783,9 @@ export default function GroupPage() {
               onSubmitRating={handleSubmitRating}
               canRate={canRate}
               isCaptain={isCaptain}
+              isOriginalCaptain={isOriginalCaptain}
               captainControlEnabled={group.captainControlEnabled}
+              coCaptainIds={group.coCaptainIds}
               onEditMember={handleEditMember}
               onUploadMemberImage={handleUploadMemberImage}
               onUploadCustomImage={async (memberId, file) => {
@@ -780,6 +798,7 @@ export default function GroupPage() {
               onToggleDisplayMode={handleToggleDisplayMode}
               onUpdateCustomDisplay={handleUpdateCustomDisplay}
               onToggleRatingMode={handleToggleRatingMode}
+              onToggleCoCaptain={handleToggleCoCaptain}
             />
           </div>
         )}

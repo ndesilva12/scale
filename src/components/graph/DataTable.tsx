@@ -20,7 +20,9 @@ interface DataTableProps {
   onSubmitRating?: (metricId: string, targetMemberId: string, value: number) => Promise<void>;
   canRate?: boolean;
   isCaptain?: boolean;
+  isOriginalCaptain?: boolean;
   captainControlEnabled?: boolean;
+  coCaptainIds?: string[];
   onEditMember?: (memberId: string, data: { name: string; email: string; imageUrl?: string }) => Promise<void>;
   onUploadMemberImage?: (memberId: string, file: File) => Promise<void>;
   onUploadCustomImage?: (memberId: string, file: File) => Promise<void>;
@@ -30,6 +32,7 @@ interface DataTableProps {
   onToggleDisplayMode?: (memberId: string, mode: MemberDisplayMode) => Promise<void>;
   onUpdateCustomDisplay?: (memberId: string, data: { customName?: string; customImageUrl?: string }) => Promise<void>;
   onToggleRatingMode?: (memberId: string, mode: MemberRatingMode) => Promise<void>;
+  onToggleCoCaptain?: (memberId: string, clerkId: string, isCoCaptain: boolean) => Promise<void>;
 }
 
 export default function DataTable({
@@ -45,7 +48,9 @@ export default function DataTable({
   onSubmitRating,
   canRate = false,
   isCaptain = false,
+  isOriginalCaptain = false,
   captainControlEnabled = false,
+  coCaptainIds = [],
   onEditMember,
   onUploadMemberImage,
   onUploadCustomImage,
@@ -55,6 +60,7 @@ export default function DataTable({
   onToggleDisplayMode,
   onUpdateCustomDisplay,
   onToggleRatingMode,
+  onToggleCoCaptain,
 }: DataTableProps) {
   const [editingCell, setEditingCell] = useState<{ memberId: string; metricId: string } | null>(null);
   const [editValue, setEditValue] = useState<number>(50);
@@ -432,9 +438,18 @@ export default function DataTable({
                       <div className="font-medium text-white text-xs sm:text-sm truncate flex items-center gap-1">
                         <span className="truncate">{getMemberDisplayName(member)}</span>
                         {member.isCaptain && <Anchor className="w-3 h-3 text-lime-500 flex-shrink-0" />}
+                        {!member.isCaptain && member.clerkId && coCaptainIds.includes(member.clerkId) && (
+                          <Anchor className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                        )}
                       </div>
                       <div className="text-[10px] sm:text-xs text-gray-400 truncate">
-                        {member.isCaptain ? 'Captain' : member.status === 'placeholder' ? 'Pending' : 'Active'}
+                        {member.isCaptain
+                          ? 'Captain'
+                          : member.clerkId && coCaptainIds.includes(member.clerkId)
+                            ? 'Co-Captain'
+                            : member.status === 'placeholder'
+                              ? 'Pending'
+                              : 'Active'}
                       </div>
                     </div>
                   </Link>
@@ -700,6 +715,32 @@ export default function DataTable({
                       {member.ratingMode === 'captain'
                         ? "Only your rating counts for this item"
                         : "Average of all group ratings"}
+                    </p>
+                  </div>
+                )}
+
+                {/* Co-captain toggle - only visible to original captain for claimed users */}
+                {isOriginalCaptain && member.clerkId && !member.isCaptain && onToggleCoCaptain && (
+                  <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Co-Captain</p>
+                    <button
+                      onClick={() => {
+                        const isCoCaptain = coCaptainIds.includes(member.clerkId!);
+                        onToggleCoCaptain(member.id, member.clerkId!, isCoCaptain);
+                      }}
+                      className={`w-full px-2 py-1.5 text-xs rounded flex items-center justify-center gap-1 ${
+                        coCaptainIds.includes(member.clerkId)
+                          ? 'bg-lime-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                      }`}
+                    >
+                      <Anchor className="w-3 h-3" />
+                      {coCaptainIds.includes(member.clerkId) ? 'Remove Co-Captain' : 'Make Co-Captain'}
+                    </button>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+                      {coCaptainIds.includes(member.clerkId)
+                        ? "Has full captain permissions"
+                        : "Grant captain permissions to this user"}
                     </p>
                   </div>
                 )}
