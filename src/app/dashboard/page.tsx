@@ -113,7 +113,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col bg-gray-900">
       <Header />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
@@ -196,29 +196,18 @@ export default function DashboardPage() {
           </Card>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {groups.map((group, index) => {
-              // Rotate through different red gradient shades for visual variety
-              const gradients = [
-                'from-lime-600 to-lime-500',
-                'from-lime-500 to-lime-500',
-                'from-lime-700 to-lime-500',
-                'from-lime-500 to-lime-500',
-                'from-lime-600 to-lime-500',
-                'from-lime-500 to-lime-400',
-              ];
-              const gradient = gradients[index % gradients.length];
-
+            {groups.map((group) => {
               return (
                 <Link key={group.id} href={`/groups/${group.id}`}>
                   <Card className="overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 cursor-pointer h-full border border-gray-200 dark:border-gray-700">
-                    {/* Gradient header accent */}
-                    <div className={`h-2 bg-gradient-to-r ${gradient}`} />
+                    {/* Lime to emerald gradient header accent */}
+                    <div className="h-1.5 bg-gradient-to-r from-lime-500 to-emerald-600" />
 
                     <div className="p-6">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center shadow-md`}>
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-lime-600 to-green-600 flex items-center justify-center shadow-md">
                               <Users className="w-5 h-5 text-white" />
                             </div>
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white">

@@ -14,7 +14,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
             Map Group{' '}
-            <span className="bg-gradient-to-r from-lime-600 via-lime-500 to-lime-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-lime-500 to-emerald-600 bg-clip-text text-transparent">
               Opinions
             </span>
           </h1>

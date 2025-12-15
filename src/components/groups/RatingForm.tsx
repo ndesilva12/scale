@@ -3,10 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { GroupMember, Metric, Rating } from '@/types';
-import Button from '@/components/ui/Button';
 import Slider from '@/components/ui/Slider';
 import Avatar from '@/components/ui/Avatar';
-import Card from '@/components/ui/Card';
 
 interface RatingFormProps {
   members: GroupMember[];
@@ -114,37 +112,37 @@ export default function RatingForm({
 
   if (!canRate) {
     return (
-      <Card className="p-6 text-center">
-        <p className="text-gray-500 dark:text-gray-400">
+      <div className="p-6 text-center bg-gray-700 rounded-lg">
+        <p className="text-gray-400">
           You must be an accepted member of this group to submit ratings.
         </p>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Mobile: Show back button and rating header when member selected */}
       {selectedMember && (
         <div className="sm:hidden">
           <button
             onClick={() => setSelectedMember(null)}
-            className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+            className="flex items-center gap-1 text-gray-400 hover:text-white mb-3"
           >
             <ChevronLeft className="w-5 h-5" />
             <span className="text-sm">Back</span>
           </button>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-3">
             <Avatar
               src={selectedMember.imageUrl || selectedMember.placeholderImageUrl}
               alt={selectedMember.name}
-              size="lg"
+              size="md"
             />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-base font-semibold text-white">
                 Rating {selectedMember.name}
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-gray-400">
                 Auto-saves as you adjust
               </p>
             </div>
@@ -154,33 +152,33 @@ export default function RatingForm({
 
       {/* Member selector - hidden on mobile when member selected */}
       <div className={selectedMember ? 'hidden sm:block' : ''}>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+        <label className="block text-sm font-medium text-gray-300 mb-3">
           Select Member to Rate
         </label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
           {activeMembers.map((member) => (
             <button
               key={member.id}
               onClick={() => setSelectedMember(member)}
               className={`
-                p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2
+                p-2 sm:p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 sm:gap-2
                 ${
                   selectedMember?.id === member.id
-                    ? 'border-lime-600 bg-lime-50 dark:bg-lime-700/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    ? 'border-lime-500 bg-lime-900/30'
+                    : 'border-gray-700 hover:border-gray-600'
                 }
               `}
             >
               <Avatar
                 src={member.imageUrl || member.placeholderImageUrl}
                 alt={member.name}
-                size="lg"
+                size="md"
               />
-              <span className="text-sm font-medium text-gray-900 dark:text-white truncate w-full text-center">
+              <span className="text-xs sm:text-sm font-medium text-white truncate w-full text-center">
                 {member.name}
               </span>
               {member.clerkId === currentUserId && (
-                <span className="text-xs text-lime-600 dark:text-lime-400">(You)</span>
+                <span className="text-[10px] sm:text-xs text-lime-400">(You)</span>
               )}
             </button>
           ))}
@@ -189,19 +187,19 @@ export default function RatingForm({
 
       {/* Rating sliders */}
       {selectedMember && (
-        <Card className="p-4 sm:p-6">
+        <div className="bg-gray-700 rounded-lg p-3 sm:p-6">
           {/* Desktop header - hidden on mobile */}
-          <div className="hidden sm:flex items-center gap-4 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="hidden sm:flex items-center gap-4 mb-6 pb-4 border-b border-gray-600">
             <Avatar
               src={selectedMember.imageUrl || selectedMember.placeholderImageUrl}
               alt={selectedMember.name}
               size="lg"
             />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-lg font-semibold text-white">
                 Rating {selectedMember.name}
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-400">
                 {selectedMember.clerkId === currentUserId
                   ? 'Self-rating - ratings auto-save as you adjust'
                   : 'Adjust the sliders to rate - auto-saves as you drag'}
@@ -209,33 +207,33 @@ export default function RatingForm({
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {metrics.map((metric) => {
               const defaultValue = Math.round((metric.minValue + metric.maxValue) / 2);
               return (
-                <div key={metric.id} className="space-y-2">
+                <div key={metric.id} className="space-y-1 sm:space-y-2">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-white text-sm sm:text-base">
                         {metric.name}
                       </div>
                       {metric.description && (
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-xs sm:text-sm text-gray-400 truncate hidden sm:block">
                           {metric.description}
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900 dark:text-white">
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="font-medium text-white text-sm sm:text-base">
                         {metric.prefix}{ratings[metric.id] ?? defaultValue}{metric.suffix}
                       </span>
                       {saving === metric.id && (
-                        <div className="w-4 h-4 border-2 border-lime-600 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-lime-500 border-t-transparent rounded-full animate-spin" />
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">{metric.prefix}{metric.minValue}{metric.suffix}</span>
+                    <span className="text-xs text-gray-500 hidden sm:block">{metric.prefix}{metric.minValue}{metric.suffix}</span>
                     <Slider
                       value={ratings[metric.id] ?? defaultValue}
                       onChange={(e) => handleRatingChange(metric.id, Number(e.target.value))}
@@ -243,24 +241,13 @@ export default function RatingForm({
                       max={metric.maxValue}
                       className="flex-1"
                     />
-                    <span className="text-xs text-gray-400">{metric.prefix}{metric.maxValue}{metric.suffix}</span>
+                    <span className="text-xs text-gray-500 hidden sm:block">{metric.prefix}{metric.maxValue}{metric.suffix}</span>
                   </div>
                 </div>
               );
             })}
           </div>
-
-          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              onClick={handleSaveAllRatings}
-              loading={saving === 'all'}
-              disabled={saving !== null}
-              className="w-full"
-            >
-              Save All Ratings
-            </Button>
-          </div>
-        </Card>
+        </div>
       )}
     </div>
   );

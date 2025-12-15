@@ -60,10 +60,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#7bb400" },
-    { media: "(prefers-color-scheme: dark)", color: "#5a8600" },
-  ],
+  themeColor: "#1f2937",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -78,13 +75,13 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" className="dark">
         <head>
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="mobile-web-app-capable" content="yes" />
         </head>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-gray-900 text-white`}
         >
           <ServiceWorkerRegistration />
           {children}

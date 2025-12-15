@@ -401,30 +401,25 @@ export default function GroupPage() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 ${viewMode === 'graph' ? 'sm:min-h-screen' : ''}`}>
+    <div className={`min-h-screen flex flex-col bg-gray-900 ${viewMode === 'graph' ? 'sm:min-h-screen' : ''}`}>
       <Header />
 
       <main className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-8 ${viewMode === 'graph' ? 'sm:py-8 flex flex-col' : ''}`}>
-        {/* Mobile header - inline: back chevron + title + menu */}
-        <div className="flex sm:hidden items-center justify-between mb-2">
-          <div className="flex items-center gap-1 flex-1 min-w-0">
-            <Link
-              href="/dashboard"
-              className="p-1 -ml-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </Link>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white truncate">
-              {group.name}
-            </h1>
-          </div>
+        {/* Mobile header - back + menu only */}
+        <div className="flex sm:hidden items-center justify-between mb-3">
+          <Link
+            href="/dashboard"
+            className="p-1 -ml-1 text-gray-400 hover:text-white"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </Link>
 
           {/* Mobile captain menu (three-dot) */}
           {isCaptain && (
             <div className="relative">
               <button
                 onClick={() => setShowMobileCaptainMenu(!showMobileCaptainMenu)}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                className="p-2 text-gray-400 hover:bg-gray-800 rounded-lg"
               >
                 <MoreVertical className="w-5 h-5" />
                 {claimRequests.length > 0 && (
@@ -433,7 +428,7 @@ export default function GroupPage() {
               </button>
 
               {showMobileCaptainMenu && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-30">
+                <div className="absolute right-0 top-full mt-1 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-30">
                   <div className="py-1">
                     {claimRequests.length > 0 && (
                       <button
@@ -441,7 +436,7 @@ export default function GroupPage() {
                           setShowClaimRequestsModal(true);
                           setShowMobileCaptainMenu(false);
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
                       >
                         <Users className="w-4 h-4" />
                         Claims
@@ -455,7 +450,7 @@ export default function GroupPage() {
                         handleOpenGroupSettings();
                         setShowMobileCaptainMenu(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
                     >
                       <Settings2 className="w-4 h-4" />
                       Settings
@@ -465,7 +460,7 @@ export default function GroupPage() {
                         handleOpenMetricsModal();
                         setShowMobileCaptainMenu(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
                     >
                       <Settings className="w-4 h-4" />
                       Metrics
@@ -475,7 +470,7 @@ export default function GroupPage() {
                         setShowAddMemberModal(true);
                         setShowMobileCaptainMenu(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
                     >
                       <UserPlus className="w-4 h-4" />
                       Add
@@ -487,36 +482,24 @@ export default function GroupPage() {
           )}
         </div>
 
-        {/* Desktop header - full layout */}
-        <div className="hidden sm:block mb-4 sm:mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Dashboard
-            </Link>
-          </div>
+        {/* Desktop header - back + captain buttons only */}
+        <div className="hidden sm:flex items-center justify-between mb-4">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center text-sm text-gray-400 hover:text-white"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Back to Dashboard
+          </Link>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                {group.name}
-              </h1>
-              {group.description && (
-                <p className="text-gray-600 dark:text-gray-400 mt-1">{group.description}</p>
-              )}
-            </div>
-
-            {/* Desktop captain buttons */}
-            <div className="flex items-center gap-2">
-              {claimRequests.length > 0 && isCaptain && (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowClaimRequestsModal(true)}
-                  className="relative"
-                >
+          {/* Desktop captain buttons */}
+          <div className="flex items-center gap-2">
+            {claimRequests.length > 0 && isCaptain && (
+              <Button
+                variant="outline"
+                onClick={() => setShowClaimRequestsModal(true)}
+                className="relative"
+              >
                   <Users className="w-4 h-4 mr-2" />
                   Claims
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-500 text-white text-xs rounded-full flex items-center justify-center">
@@ -541,33 +524,32 @@ export default function GroupPage() {
                 </>
               )}
             </div>
-          </div>
         </div>
 
-        {/* Graph Title with Y/X Dropdown Selectors - shown when in graph mode */}
-        {viewMode === 'graph' && group.metrics.length > 0 && (
-          <div className="text-center mb-2 sm:mb-3">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-800 dark:text-white inline-flex items-center justify-center flex-wrap gap-x-2">
+        {/* Axis selectors as title - always visible, plain white text with lime underline */}
+        {group.metrics.length > 0 && (
+          <div className="text-center mb-3">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold inline-flex items-center justify-center flex-wrap gap-x-2">
               {/* Y Axis Selector */}
               <div className="relative inline-block">
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setShowYAxisDropdown(!showYAxisDropdown);
                     setShowXAxisDropdown(false);
                   }}
                   disabled={isYAxisLocked}
-                  className={`inline-flex items-center gap-1 hover:opacity-80 transition-opacity disabled:opacity-50 ${
-                    yMetricId ? 'underline decoration-2 underline-offset-4 decoration-lime-500' : ''
-                  }`}
+                  className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[60px] sm:min-w-[80px] justify-center pb-1"
                 >
-                  <span>{yMetricId ? group.metrics.find((m) => m.id === yMetricId)?.name : 'Y Axis'}</span>
-                  <ChevronDown className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${showYAxisDropdown ? 'rotate-180' : ''}`} />
+                  <span className="text-white">
+                    {yMetricId ? group.metrics.find((m) => m.id === yMetricId)?.name : '\u00A0'}
+                  </span>
                 </button>
                 {showYAxisDropdown && (
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1">
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 py-1">
                     <button
                       onClick={() => { setYMetricId(''); setShowYAxisDropdown(false); }}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${!yMetricId ? 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300' : 'text-gray-700 dark:text-gray-300'}`}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-700 ${!yMetricId ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
                     >
                       None
                     </button>
@@ -575,7 +557,7 @@ export default function GroupPage() {
                       <button
                         key={opt.value}
                         onClick={() => { setYMetricId(opt.value); setShowYAxisDropdown(false); }}
-                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${yMetricId === opt.value ? 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300' : 'text-gray-700 dark:text-gray-300'}`}
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-700 ${yMetricId === opt.value ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
                       >
                         {opt.label}
                       </button>
@@ -584,28 +566,28 @@ export default function GroupPage() {
                 )}
               </div>
 
-              <span className="text-gray-400 dark:text-gray-500 font-normal mx-1 sm:mx-2">×</span>
+              <span className="text-gray-500 font-normal mx-1 sm:mx-2">×</span>
 
               {/* X Axis Selector */}
               <div className="relative inline-block">
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setShowXAxisDropdown(!showXAxisDropdown);
                     setShowYAxisDropdown(false);
                   }}
                   disabled={isXAxisLocked}
-                  className={`inline-flex items-center gap-1 hover:opacity-80 transition-opacity disabled:opacity-50 ${
-                    xMetricId ? 'underline decoration-2 underline-offset-4 decoration-lime-500' : ''
-                  }`}
+                  className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[60px] sm:min-w-[80px] justify-center pb-1"
                 >
-                  <span>{xMetricId ? group.metrics.find((m) => m.id === xMetricId)?.name : 'X Axis'}</span>
-                  <ChevronDown className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${showXAxisDropdown ? 'rotate-180' : ''}`} />
+                  <span className="text-white">
+                    {xMetricId ? group.metrics.find((m) => m.id === xMetricId)?.name : '\u00A0'}
+                  </span>
                 </button>
                 {showXAxisDropdown && (
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1">
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 py-1">
                     <button
                       onClick={() => { setXMetricId(''); setShowXAxisDropdown(false); }}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${!xMetricId ? 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300' : 'text-gray-700 dark:text-gray-300'}`}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-700 ${!xMetricId ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
                     >
                       None
                     </button>
@@ -613,7 +595,7 @@ export default function GroupPage() {
                       <button
                         key={opt.value}
                         onClick={() => { setXMetricId(opt.value); setShowXAxisDropdown(false); }}
-                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 ${xMetricId === opt.value ? 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300' : 'text-gray-700 dark:text-gray-300'}`}
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-700 ${xMetricId === opt.value ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
                       >
                         {opt.label}
                       </button>
@@ -625,15 +607,15 @@ export default function GroupPage() {
           </div>
         )}
 
-        {/* Control bar tabs - attached to content below */}
-        <div className="bg-white dark:bg-gray-900 rounded-t-xl sm:rounded-t-xl border-x border-t border-gray-200 dark:border-gray-700 -mx-4 sm:mx-0">
-          <div className="flex w-full">
+        {/* Control bar tabs - rounded, new selection style */}
+        <div className="bg-gray-800 rounded-t-xl -mx-4 sm:mx-0 p-1">
+          <div className="flex w-full gap-1">
             <button
               onClick={() => setViewMode('graph')}
-              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-lg ${
                 viewMode === 'graph'
-                  ? 'bg-lime-500 text-green-950'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  ? 'bg-white/10 text-white border border-white/30'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
               <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -641,10 +623,10 @@ export default function GroupPage() {
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-lg ${
                 viewMode === 'table'
-                  ? 'bg-lime-500 text-green-950'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  ? 'bg-white/10 text-white border border-white/30'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
               <Table className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -653,10 +635,10 @@ export default function GroupPage() {
             {canRate && (
               <button
                 onClick={() => setViewMode('rate')}
-                className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-lg ${
                   viewMode === 'rate'
-                    ? 'bg-lime-500 text-green-950'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    ? 'bg-white/10 text-white border border-white/30'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
                 <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -668,7 +650,7 @@ export default function GroupPage() {
 
         {/* Content - attached to tabs above */}
         {viewMode === 'graph' && (
-          <div className="flex-1 flex flex-col -mx-4 sm:mx-0 bg-white dark:bg-gray-900 border-x border-b border-gray-200 dark:border-gray-700 rounded-b-none sm:rounded-b-xl">
+          <div className="flex-1 flex flex-col -mx-4 sm:mx-0 bg-gray-800 rounded-b-xl">
             <div className="flex-1 w-full p-2 sm:p-6 sm:pl-12 sm:pb-8">
               <div className="w-full h-full min-h-[300px] sm:min-h-0 sm:aspect-[4/3] lg:aspect-[16/10] sm:max-h-[70vh]">
                 <MemberGraph
@@ -690,7 +672,7 @@ export default function GroupPage() {
         )}
 
         {viewMode === 'table' && (
-          <div className="bg-white dark:bg-gray-900 border-x border-b border-gray-200 dark:border-gray-700 rounded-b-none sm:rounded-b-xl -mx-4 sm:mx-0 p-2 sm:p-6 overflow-auto max-h-[calc(100vh-200px)]">
+          <div className="bg-gray-800 rounded-b-xl -mx-4 sm:mx-0 p-2 sm:p-6 overflow-auto max-h-[calc(100vh-200px)]">
             <DataTable
               members={members}
               metrics={group.metrics}
@@ -722,7 +704,7 @@ export default function GroupPage() {
         )}
 
         {viewMode === 'rate' && canRate && (
-          <div className="bg-white dark:bg-gray-900 border-x border-b border-gray-200 dark:border-gray-700 rounded-b-none sm:rounded-b-xl -mx-4 sm:mx-0 p-4 sm:p-6">
+          <div className="bg-gray-800 rounded-b-xl -mx-4 sm:mx-0 p-4 sm:p-6">
             <RatingForm
               members={members}
               metrics={group.metrics}
