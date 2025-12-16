@@ -88,6 +88,8 @@ export default function GroupPage() {
   const [editingLockedYMetricId, setEditingLockedYMetricId] = useState<string | null>(null);
   const [editingLockedXMetricId, setEditingLockedXMetricId] = useState<string | null>(null);
   const [editingCaptainControlEnabled, setEditingCaptainControlEnabled] = useState(false);
+  const [editingIsPublic, setEditingIsPublic] = useState(true);
+  const [editingIsOpen, setEditingIsOpen] = useState(false);
   const [savingGroupSettings, setSavingGroupSettings] = useState(false);
   const [showMobileCaptainMenu, setShowMobileCaptainMenu] = useState(false);
 
@@ -124,7 +126,11 @@ export default function GroupPage() {
   const isCaptain = group?.captainId === user?.id || (group?.coCaptainIds?.includes(user?.id || '') ?? false);
   const isOriginalCaptain = group?.captainId === user?.id; // Only original captain can promote co-captains
   const currentMember = members.find((m) => m.clerkId === user?.id);
-  const canRate = currentMember?.status === 'accepted';
+  const isMember = currentMember?.status === 'accepted';
+  // canRate: if group is open, any logged in user can rate; if closed, only members can rate
+  const canRate = group?.isOpen ? !!user : isMember;
+  // Check if user can view the group (public groups can be viewed by anyone, private only by members)
+  const canViewGroup = group?.isPublic || isMember || isCaptain;
 
   // Subscribe to real-time updates
   useEffect(() => {
@@ -334,6 +340,8 @@ export default function GroupPage() {
       setEditingLockedYMetricId(group.lockedYMetricId);
       setEditingLockedXMetricId(group.lockedXMetricId);
       setEditingCaptainControlEnabled(group.captainControlEnabled);
+      setEditingIsPublic(group.isPublic);
+      setEditingIsOpen(group.isOpen);
       setShowGroupSettingsModal(true);
     }
   };
@@ -348,6 +356,8 @@ export default function GroupPage() {
         lockedYMetricId: editingLockedYMetricId,
         lockedXMetricId: editingLockedXMetricId,
         captainControlEnabled: editingCaptainControlEnabled,
+        isPublic: editingIsPublic,
+        isOpen: editingIsOpen,
       });
       setShowGroupSettingsModal(false);
     } finally {
@@ -453,6 +463,29 @@ export default function GroupPage() {
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               This group may have been deleted or you don&apos;t have access to it.
+            </p>
+            <Link href="/dashboard">
+              <Button>Back to Dashboard</Button>
+            </Link>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Access denied for private groups
+  if (!canViewGroup) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="p-8 text-center max-w-md">
+            <Lock className="w-12 h-12 mx-auto mb-4 text-lime-500" />
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              Private Group
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              This group is private. Only members can view its contents.
             </p>
             <Link href="/dashboard">
               <Button>Back to Dashboard</Button>
@@ -1235,6 +1268,64 @@ export default function GroupPage() {
               rows={3}
               className="w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-lime-600 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
+          </div>
+
+          {/* Public/Private Toggle */}
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Public Group
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {editingIsPublic ? 'Anyone can view this group' : 'Only members can view this group'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingIsPublic(!editingIsPublic)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  editingIsPublic
+                    ? 'bg-lime-600'
+                    : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    editingIsPublic ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Open/Closed Toggle */}
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Open Ratings
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {editingIsOpen ? 'Anyone can rate items' : 'Only members can rate items'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingIsOpen(!editingIsOpen)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  editingIsOpen
+                    ? 'bg-lime-600'
+                    : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    editingIsOpen ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           {/* Captain Control Toggle */}

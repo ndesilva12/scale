@@ -77,8 +77,15 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" className="dark">
         <head>
+          {/* PWA meta tags */}
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <meta name="apple-touch-fullscreen" content="yes" />
+          {/* Ensure all navigation stays within PWA */}
+          <meta name="apple-mobile-web-app-title" content="Scale" />
+          <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+          <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
         </head>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-gray-900 text-white`}

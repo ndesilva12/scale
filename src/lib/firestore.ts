@@ -81,6 +81,8 @@ export async function createGroup(
     lockedYMetricId: null,
     lockedXMetricId: null,
     captainControlEnabled: false,
+    isPublic: true, // Default to public
+    isOpen: false, // Default to closed (only members can rate)
     createdAt: now,
     updatedAt: now,
   };
@@ -121,6 +123,8 @@ export async function getGroup(groupId: string): Promise<Group | null> {
     lockedYMetricId: data.lockedYMetricId ?? null,
     lockedXMetricId: data.lockedXMetricId ?? null,
     captainControlEnabled: data.captainControlEnabled ?? false,
+    isPublic: data.isPublic ?? true, // Default to public for backward compatibility
+    isOpen: data.isOpen ?? false, // Default to closed for backward compatibility
     createdAt: convertTimestamp(data.createdAt),
     updatedAt: convertTimestamp(data.updatedAt),
   } as Group;
@@ -166,6 +170,8 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
       lockedYMetricId: data.lockedYMetricId ?? null,
       lockedXMetricId: data.lockedXMetricId ?? null,
       captainControlEnabled: data.captainControlEnabled ?? false,
+      isPublic: data.isPublic ?? true,
+      isOpen: data.isOpen ?? false,
       createdAt: convertTimestamp(data.createdAt),
       updatedAt: convertTimestamp(data.updatedAt),
     } as Group);
@@ -195,7 +201,7 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
 
 export async function updateGroup(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'defaultYMetricId' | 'defaultXMetricId' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled' | 'coCaptainIds'>>
+  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'defaultYMetricId' | 'defaultXMetricId' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled' | 'coCaptainIds' | 'isPublic' | 'isOpen'>>
 ): Promise<void> {
   await updateDoc(doc(groupsCollection, groupId), {
     ...updates,
@@ -698,6 +704,8 @@ export function subscribeToGroup(
       lockedYMetricId: data.lockedYMetricId ?? null,
       lockedXMetricId: data.lockedXMetricId ?? null,
       captainControlEnabled: data.captainControlEnabled ?? false,
+      isPublic: data.isPublic ?? true,
+      isOpen: data.isOpen ?? false,
       createdAt: convertTimestamp(data.createdAt),
       updatedAt: convertTimestamp(data.updatedAt),
     } as Group);

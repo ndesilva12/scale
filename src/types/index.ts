@@ -27,6 +27,8 @@ export interface Group {
   lockedYMetricId: string | null; // If set, this metric is locked as the Y-axis (cannot be changed)
   lockedXMetricId: string | null; // If set, this metric is locked as the X-axis (cannot be changed)
   captainControlEnabled: boolean; // If true, captain can always edit member display (name/image) even after claimed
+  isPublic: boolean; // If true, anyone can view the group; if false, only members can view
+  isOpen: boolean; // If true, anyone can rate; if false, only members can rate (and Rate tab is hidden)
   createdAt: Date;
   updatedAt: Date;
 }

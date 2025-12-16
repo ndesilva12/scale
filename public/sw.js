@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scale-v2';
+const CACHE_NAME = 'scale-v3';
 
 // Assets to cache on install
 const STATIC_ASSETS = [
@@ -7,6 +7,7 @@ const STATIC_ASSETS = [
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
+  '/scalem.png',
 ];
 
 // Install event - cache static assets
