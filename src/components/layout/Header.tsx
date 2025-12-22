@@ -42,6 +42,13 @@ export default function Header() {
                 appearance={{
                   elements: {
                     avatarBox: 'w-9 h-9',
+                    userButtonPopoverCard: 'bg-gray-900 border border-white/20 shadow-2xl backdrop-blur-xl',
+                    userButtonPopoverActionButton: 'text-gray-300 hover:text-white hover:bg-white/10',
+                    userButtonPopoverActionButtonText: 'text-gray-300',
+                    userButtonPopoverActionButtonIcon: 'text-gray-400',
+                    userButtonPopoverFooter: 'hidden',
+                    userPreviewMainIdentifier: 'text-white',
+                    userPreviewSecondaryIdentifier: 'text-gray-400',
                   },
                 }}
               />
@@ -85,6 +92,13 @@ export default function Header() {
                   appearance={{
                     elements: {
                       avatarBox: 'w-9 h-9',
+                      userButtonPopoverCard: 'bg-gray-900 border border-white/20 shadow-2xl backdrop-blur-xl',
+                      userButtonPopoverActionButton: 'text-gray-300 hover:text-white hover:bg-white/10',
+                      userButtonPopoverActionButtonText: 'text-gray-300',
+                      userButtonPopoverActionButtonIcon: 'text-gray-400',
+                      userButtonPopoverFooter: 'hidden',
+                      userPreviewMainIdentifier: 'text-white',
+                      userPreviewSecondaryIdentifier: 'text-gray-400',
                     },
                   }}
                 />
