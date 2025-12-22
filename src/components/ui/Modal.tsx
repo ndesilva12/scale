@@ -48,13 +48,13 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
       />
 
       {/* Modal */}
-      <div className={`relative w-full ${sizeClasses[size]} bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col`}>
+      <div className={`relative w-full ${sizeClasses[size]} bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl max-h-[90vh] flex flex-col`}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/10 flex-shrink-0">
           <h2 className="text-lg font-semibold text-white">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-2xl text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

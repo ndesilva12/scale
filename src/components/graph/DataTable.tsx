@@ -533,7 +533,7 @@ export default function DataTable({
       {showObjectActions && dropdownPosition && (
         <div
           data-dropdown
-          className="fixed w-72 max-w-[calc(100vw-32px)] bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-50 max-h-[70vh] overflow-y-auto"
+          className="fixed w-72 max-w-[calc(100vw-32px)] bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-lg border border-white/10 z-50 max-h-[70vh] overflow-y-auto"
           style={{
             top: dropdownPosition.top,
             left: dropdownPosition.left,
@@ -551,10 +551,10 @@ export default function DataTable({
                     <div className="flex gap-1">
                       <button
                         onClick={() => onToggleRatingMode(obj.id, 'captain')}
-                        className={`flex-1 px-2 py-1 text-xs rounded ${
+                        className={`flex-1 px-2 py-1.5 text-xs rounded-2xl backdrop-blur-sm transition-all ${
                           obj.ratingMode === 'captain'
-                            ? 'bg-lime-600 text-white'
-                            : 'bg-gray-700 text-gray-300'
+                            ? 'bg-white/20 text-white border border-white/30'
+                            : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'
                         }`}
                       >
                         <Anchor className="w-3 h-3 inline mr-1" />
@@ -562,10 +562,10 @@ export default function DataTable({
                       </button>
                       <button
                         onClick={() => onToggleRatingMode(obj.id, 'group')}
-                        className={`flex-1 px-2 py-1 text-xs rounded ${
+                        className={`flex-1 px-2 py-1.5 text-xs rounded-2xl backdrop-blur-sm transition-all ${
                           obj.ratingMode === 'group'
-                            ? 'bg-lime-600 text-white'
-                            : 'bg-gray-700 text-gray-300'
+                            ? 'bg-white/20 text-white border border-white/30'
+                            : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'
                         }`}
                       >
                         <Users className="w-3 h-3 inline mr-1" />
@@ -588,7 +588,7 @@ export default function DataTable({
                       setShowObjectActions(null);
                       setDropdownPosition(null);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-700 rounded"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-white/10 rounded-xl transition-colors"
                   >
                     <Pencil className="w-4 h-4" />
                     Edit Object
@@ -606,7 +606,7 @@ export default function DataTable({
                       setShowObjectActions(null);
                       setDropdownPosition(null);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-700 rounded"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-white/10 rounded-xl transition-colors"
                   >
                     <Camera className="w-4 h-4" />
                     Upload Image
@@ -621,7 +621,7 @@ export default function DataTable({
                       setShowObjectActions(null);
                       setDropdownPosition(null);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-700 rounded"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-white/10 rounded-xl transition-colors"
                   >
                     <Link2 className="w-4 h-4" />
                     Copy Claim Link
@@ -636,7 +636,7 @@ export default function DataTable({
                       setShowObjectActions(null);
                       setDropdownPosition(null);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-500 hover:bg-red-700/20 rounded"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-400 hover:bg-red-500/20 rounded-xl transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                     Remove Object
