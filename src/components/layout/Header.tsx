@@ -35,8 +35,8 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-gray-900/90 backdrop-blur-md border-b border-white/10 pt-[env(safe-area-inset-top)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 py-2">
+          {/* Logo - links to dashboard when logged in, homepage when not */}
+          <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2 py-2">
             <Image
               src="/scalem.png"
               alt="Scale"
