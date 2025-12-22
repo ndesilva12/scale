@@ -27,6 +27,7 @@ import {
   ClaimToken,
   Metric,
   PendingItem,
+  ItemType,
   createDefaultMetric,
 } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
@@ -261,7 +262,9 @@ export async function addMember(
   status: GroupMember['status'] = 'placeholder',
   imageUrl: string | null = null,
   isCaptain: boolean = false,
-  description: string | null = null
+  description: string | null = null,
+  itemType: ItemType = 'text',
+  linkUrl: string | null = null
 ): Promise<GroupMember> {
   const memberId = uuidv4();
   const now = new Date();
@@ -281,6 +284,8 @@ export async function addMember(
     isCaptain,
     invitedAt: now,
     respondedAt: isCaptain ? now : null,
+    itemType,
+    linkUrl,
     displayMode: 'user', // Default to showing user's actual profile
     customName: null,
     customImageUrl: null,
@@ -318,6 +323,9 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
       isCaptain,
       invitedAt: convertTimestamp(data.invitedAt),
       respondedAt: data.respondedAt ? convertTimestamp(data.respondedAt) : null,
+      // Handle new item type fields with defaults
+      itemType: data.itemType ?? 'text',
+      linkUrl: data.linkUrl ?? null,
       // Handle new display fields with defaults
       displayMode: data.displayMode ?? 'user',
       customName: data.customName ?? null,
@@ -342,6 +350,8 @@ export async function getMember(memberId: string): Promise<GroupMember | null> {
     isCaptain,
     invitedAt: convertTimestamp(data.invitedAt),
     respondedAt: data.respondedAt ? convertTimestamp(data.respondedAt) : null,
+    itemType: data.itemType ?? 'text',
+    linkUrl: data.linkUrl ?? null,
     displayMode: data.displayMode ?? 'user',
     customName: data.customName ?? null,
     customImageUrl: data.customImageUrl ?? null,
@@ -731,6 +741,9 @@ export function subscribeToMembers(
         isCaptain,
         invitedAt: convertTimestamp(data.invitedAt),
         respondedAt: data.respondedAt ? convertTimestamp(data.respondedAt) : null,
+        // Handle new item type fields with defaults
+        itemType: data.itemType ?? 'text',
+        linkUrl: data.linkUrl ?? null,
         // Handle new display fields with defaults
         displayMode: data.displayMode ?? 'user',
         customName: data.customName ?? null,

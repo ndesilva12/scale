@@ -198,26 +198,6 @@ export default function MemberProfilePage() {
                 </span>
               </div>
 
-              <div className="mt-3">
-                <span
-                  className={`
-                    inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                    ${
-                      member.status === 'accepted'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        : member.status === 'placeholder'
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
-                    }
-                  `}
-                >
-                  {member.status === 'accepted'
-                    ? 'Active Member'
-                    : member.status === 'placeholder'
-                    ? 'Pending Invitation'
-                    : member.status}
-                </span>
-              </div>
             </div>
 
             {/* Claim button */}

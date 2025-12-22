@@ -46,6 +46,7 @@ export interface Metric {
 
 export type MemberDisplayMode = 'user' | 'custom';
 export type MemberRatingMode = 'captain' | 'group'; // 'captain' = only captain's rating counts, 'group' = average of all ratings
+export type ItemType = 'text' | 'link' | 'user'; // Type of item in the group
 
 export interface GroupMember {
   id: string;
@@ -62,6 +63,9 @@ export interface GroupMember {
   isCaptain: boolean; // Whether this member is the group captain
   invitedAt: Date;
   respondedAt: Date | null;
+  // Item type - determines what kind of item this is
+  itemType: ItemType; // 'text' = simple item, 'link' = has URL, 'user' = claimable by a user
+  linkUrl: string | null; // URL for link-type items
   // Captain-controlled display settings
   displayMode: MemberDisplayMode; // 'user' = show actual profile, 'custom' = show captain-set values
   customName: string | null; // Captain-set display name (used when displayMode is 'custom')

@@ -571,13 +571,10 @@ export default function MemberGraph({
                   {getMemberDisplayName(popup.member)}
                 </div>
                 {popup.member.description && (
-                  <div className="text-xs text-gray-300 truncate">
+                  <div className="text-xs text-gray-400 truncate">
                     {popup.member.description}
                   </div>
                 )}
-                <div className="text-xs text-gray-400">
-                  {popup.member.status === 'placeholder' ? 'Pending' : 'Active'}
-                </div>
               </div>
             </div>
 

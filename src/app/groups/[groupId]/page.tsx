@@ -29,7 +29,7 @@ import MemberGraph from '@/components/graph/MemberGraph';
 import DataTable from '@/components/graph/DataTable';
 import AddMemberForm from '@/components/groups/AddMemberForm';
 import RatingForm from '@/components/groups/RatingForm';
-import { Group, GroupMember, Rating, AggregatedScore, ClaimRequest, Metric, MetricPrefix, MetricSuffix, PendingItem } from '@/types';
+import { Group, GroupMember, Rating, AggregatedScore, ClaimRequest, Metric, MetricPrefix, MetricSuffix, PendingItem, ItemType } from '@/types';
 import {
   subscribeToGroup,
   subscribeToMembers,
@@ -216,7 +216,14 @@ export default function GroupPage() {
     }
   }, [group, members, isCaptain, user, groupId, loading]);
 
-  const handleAddMember = async (data: { email: string | null; name: string; placeholderImageUrl: string; description: string | null }) => {
+  const handleAddMember = async (data: {
+    email: string | null;
+    name: string;
+    placeholderImageUrl: string;
+    description: string | null;
+    itemType: 'text' | 'link' | 'user';
+    linkUrl: string | null;
+  }) => {
     if (!user || !group) return;
 
     if (isCaptain) {
@@ -230,11 +237,13 @@ export default function GroupPage() {
         'placeholder', // status
         null, // imageUrl
         false, // isCaptain
-        data.description
+        data.description,
+        data.itemType,
+        data.linkUrl
       );
 
-      // Only create invitation if email is provided
-      if (data.email) {
+      // Only create invitation if email is provided and item is a user type
+      if (data.email && data.itemType === 'user') {
         await createInvitation(
           groupId,
           group.name,
@@ -822,14 +831,14 @@ export default function GroupPage() {
           </div>
         </div>
 
-        {/* Control bar tabs - rounded, new selection style */}
-        <div className="bg-gray-900 rounded-t-xl -mx-4 sm:mx-0 p-1">
+        {/* Control bar tabs - glass style */}
+        <div className="bg-gray-800/30 backdrop-blur-md rounded-2xl -mx-4 sm:mx-0 p-1.5 border border-white/10">
           <div className="flex w-full gap-1">
             <button
               onClick={() => setViewMode('graph')}
               className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-xl ${
                 viewMode === 'graph'
-                  ? 'bg-white/15 text-white border border-white'
+                  ? 'bg-white/10 text-white border border-white/30 backdrop-blur-sm'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -840,7 +849,7 @@ export default function GroupPage() {
               onClick={() => setViewMode('table')}
               className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-xl ${
                 viewMode === 'table'
-                  ? 'bg-white/15 text-white border border-white'
+                  ? 'bg-white/10 text-white border border-white/30 backdrop-blur-sm'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -852,7 +861,7 @@ export default function GroupPage() {
                 onClick={() => setViewMode('rate')}
                 className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium transition-all rounded-xl ${
                   viewMode === 'rate'
-                    ? 'bg-white/15 text-white border border-white'
+                    ? 'bg-white/10 text-white border border-white/30 backdrop-blur-sm'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >

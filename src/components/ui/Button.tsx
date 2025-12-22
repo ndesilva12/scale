@@ -10,14 +10,14 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className = '', variant = 'primary', size = 'md', loading = false, disabled, children, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm';
 
     const variantStyles = {
-      primary: 'bg-white/15 text-white border border-white hover:bg-white/25 focus:ring-white/50',
-      secondary: 'bg-white/15 text-white border border-white hover:bg-white/25 focus:ring-white/50',
-      outline: 'border border-white bg-transparent text-white hover:bg-white/15 focus:ring-white/50',
-      ghost: 'bg-transparent text-gray-400 hover:bg-white/15 hover:text-white focus:ring-white/50',
-      danger: 'bg-red-600/80 text-white border border-red-500 hover:bg-red-600 focus:ring-red-500',
+      primary: 'bg-white/10 text-white border border-white/30 hover:bg-white/15 hover:border-white/50 focus:ring-white/30',
+      secondary: 'bg-white/10 text-white border border-white/30 hover:bg-white/15 hover:border-white/50 focus:ring-white/30',
+      outline: 'border border-white/30 bg-transparent text-white hover:bg-white/10 hover:border-white/50 focus:ring-white/30',
+      ghost: 'bg-transparent text-gray-400 hover:bg-white/10 hover:text-white focus:ring-white/30',
+      danger: 'bg-red-600/60 text-white border border-red-500/50 hover:bg-red-600/80 hover:border-red-500 focus:ring-red-500/50',
     };
 
     const sizeStyles = {
