@@ -22,6 +22,10 @@ import {
   MoreVertical,
   Trash2,
   GripVertical,
+  Heart,
+  LogOut,
+  UserCheck,
+  UserX,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -60,6 +64,11 @@ import {
   submitPendingObject,
   respondToPendingObject,
   deleteGroup,
+  followGroup,
+  unfollowGroup,
+  requestMembership,
+  respondToMembershipRequest,
+  leaveGroup,
 } from '@/lib/firestore';
 import Input from '@/components/ui/Input';
 
@@ -105,7 +114,8 @@ export default function GroupPage() {
   const [deletingGroup, setDeletingGroup] = useState(false);
   const [showMobileCaptainMenu, setShowMobileCaptainMenu] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
-  const [joiningGroup, setJoiningGroup] = useState(false);
+  const [showMembershipRequestsModal, setShowMembershipRequestsModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Graph state
   const [xMetricId, setXMetricId] = useState<string>('');
@@ -140,11 +150,20 @@ export default function GroupPage() {
   const isCaptain = group?.captainId === user?.id || (group?.coCaptainIds?.includes(user?.id || '') ?? false);
   const isOriginalCaptain = group?.captainId === user?.id; // Only original captain can promote co-captains
   const currentMember = members.find((m) => m.clerkId === user?.id);
-  const isMember = currentMember?.status === 'accepted';
-  // canRate: if group is open, any logged in user can rate; if closed, only members can rate
-  const canRate = group?.isOpen ? !!user : isMember;
-  // Check if user can view the group (public groups can be viewed by anyone, private only by members)
-  const canViewGroup = group?.isPublic || isMember || isCaptain;
+
+  // Distinguish between followers and actual members
+  const isFollower = currentMember?.role === 'follower' && currentMember?.status === 'accepted';
+  const isActualMember = currentMember && currentMember.role !== 'follower' && currentMember.status === 'accepted';
+  const hasPendingMembershipRequest = currentMember?.status === 'pending' && currentMember?.role === 'member';
+
+  // Actual members (excluding followers)
+  const actualMembers = members.filter(m => m.role !== 'follower' && m.status === 'accepted');
+  const pendingMembershipRequests = members.filter(m => m.role === 'member' && m.status === 'pending');
+
+  // canRate: if group is open, any logged in user can rate; if closed, only actual members can rate
+  const canRate = group?.isOpen ? !!user : isActualMember;
+  // Check if user can view the group (public groups can be viewed by anyone, private only by actual members)
+  const canViewGroup = group?.isPublic || isActualMember || isCaptain;
 
   // Subscribe to real-time updates
   useEffect(() => {
@@ -431,10 +450,44 @@ export default function GroupPage() {
     }
   };
 
-  const handleJoinGroup = async () => {
+  // Follow a public group (adds to My Groups)
+  const handleFollowGroup = async () => {
     if (!user || !group) return;
+    setActionLoading(true);
+    try {
+      await followGroup(
+        groupId,
+        user.id,
+        user.emailAddresses[0]?.emailAddress || '',
+        user.fullName || user.firstName || 'User',
+        user.imageUrl || null
+      );
+    } catch (error) {
+      console.error('Failed to follow group:', error);
+      alert('Failed to follow group. Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
-    setJoiningGroup(true);
+  // Unfollow a public group
+  const handleUnfollowGroup = async () => {
+    if (!user || !group) return;
+    setActionLoading(true);
+    try {
+      await unfollowGroup(groupId, user.id);
+    } catch (error) {
+      console.error('Failed to unfollow group:', error);
+      alert('Failed to unfollow group. Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Accept invitation to private group (adds to My Groups)
+  const handleAcceptPrivateGroup = async () => {
+    if (!user || !group) return;
+    setActionLoading(true);
     try {
       await addMember(
         groupId,
@@ -443,13 +496,59 @@ export default function GroupPage() {
         user.fullName || user.firstName || 'Member',
         user.imageUrl || null,
         'member',
-        'accepted' // Auto-accept for open groups
+        'accepted'
       );
     } catch (error) {
-      console.error('Failed to join group:', error);
-      alert('Failed to join group. Please try again.');
+      console.error('Failed to accept group:', error);
+      alert('Failed to accept group. Please try again.');
     } finally {
-      setJoiningGroup(false);
+      setActionLoading(false);
+    }
+  };
+
+  // Request membership for public closed groups
+  const handleRequestMembership = async () => {
+    if (!user || !group) return;
+    setActionLoading(true);
+    try {
+      await requestMembership(
+        groupId,
+        user.id,
+        user.emailAddresses[0]?.emailAddress || '',
+        user.fullName || user.firstName || 'User',
+        user.imageUrl || null
+      );
+      alert('Membership request submitted! The captain will review your request.');
+    } catch (error) {
+      console.error('Failed to request membership:', error);
+      alert('Failed to request membership. Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Leave group (for actual members, not captain)
+  const handleLeaveGroup = async () => {
+    if (!user || !group) return;
+    if (!confirm('Are you sure you want to leave this group?')) return;
+    setActionLoading(true);
+    try {
+      await leaveGroup(groupId, user.id);
+    } catch (error) {
+      console.error('Failed to leave group:', error);
+      alert('Failed to leave group. Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Captain responds to membership request
+  const handleRespondToMembershipRequest = async (memberId: string, approve: boolean) => {
+    try {
+      await respondToMembershipRequest(memberId, approve);
+    } catch (error) {
+      console.error('Failed to respond to membership request:', error);
+      alert('Failed to process request. Please try again.');
     }
   };
 
@@ -626,26 +725,80 @@ export default function GroupPage() {
                 </p>
               )}
             </div>
-            {/* Right side: members count + join button */}
+            {/* Right side: member count (private only) + action buttons */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              {/* Member count - clickable to show member list */}
-              <button
-                onClick={() => setShowMembersModal(true)}
-                className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
-              >
-                <Users className="w-4 h-4" />
-                <span>{members.filter(m => m.status === 'accepted').length}</span>
-              </button>
-              {/* Join button for non-members on open groups */}
-              {group.isOpen && user && !isMember && !isCaptain && (
-                <Button
-                  variant="secondary"
-                  onClick={handleJoinGroup}
-                  loading={joiningGroup}
+              {/* Member count - only show for private groups or public closed groups */}
+              {(!group.isPublic || !group.isOpen) && actualMembers.length > 0 && (
+                <button
+                  onClick={() => setShowMembersModal(true)}
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
                 >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Join
-                </Button>
+                  <Users className="w-4 h-4" />
+                  <span>{actualMembers.length}</span>
+                </button>
+              )}
+
+              {/* Action buttons based on group type and user status */}
+              {user && !isCaptain && (
+                <>
+                  {/* PUBLIC GROUPS: Follow/Unfollow */}
+                  {group.isPublic && (
+                    <>
+                      {isFollower ? (
+                        <Button
+                          variant="outline"
+                          onClick={handleUnfollowGroup}
+                          loading={actionLoading}
+                          className="text-sm"
+                        >
+                          <Heart className="w-4 h-4 mr-1.5 fill-current" />
+                          Following
+                        </Button>
+                      ) : !isActualMember && (
+                        <Button
+                          variant="secondary"
+                          onClick={handleFollowGroup}
+                          loading={actionLoading}
+                          className="text-sm"
+                        >
+                          <Heart className="w-4 h-4 mr-1.5" />
+                          Follow
+                        </Button>
+                      )}
+
+                      {/* PUBLIC CLOSED: Request Membership (if not already a member) */}
+                      {!group.isOpen && !isActualMember && !hasPendingMembershipRequest && (
+                        <Button
+                          variant="outline"
+                          onClick={handleRequestMembership}
+                          loading={actionLoading}
+                          className="text-sm"
+                        >
+                          <UserPlus className="w-4 h-4 mr-1.5" />
+                          Request to Join
+                        </Button>
+                      )}
+                      {hasPendingMembershipRequest && (
+                        <span className="text-sm text-gray-400 px-3 py-1.5 bg-gray-800 rounded-lg">
+                          Request Pending
+                        </span>
+                      )}
+                    </>
+                  )}
+
+                  {/* PRIVATE GROUPS: Accept button (to add to My Groups) */}
+                  {!group.isPublic && !isActualMember && (
+                    <Button
+                      variant="secondary"
+                      onClick={handleAcceptPrivateGroup}
+                      loading={actionLoading}
+                      className="text-sm"
+                    >
+                      <UserCheck className="w-4 h-4 mr-1.5" />
+                      Accept
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -749,7 +902,7 @@ export default function GroupPage() {
                 className="p-2 text-gray-400 hover:bg-gray-800 rounded-lg"
               >
                 <MoreVertical className="w-5 h-5" />
-                {isCaptain && (claimRequests.length > 0 || pendingItems.length > 0) && (
+                {isCaptain && (claimRequests.length > 0 || pendingItems.length > 0 || pendingMembershipRequests.length > 0) && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-lime-500 rounded-full" />
                 )}
               </button>
@@ -775,6 +928,21 @@ export default function GroupPage() {
                             </span>
                           </button>
                         )}
+                        {pendingMembershipRequests.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setShowMembershipRequestsModal(true);
+                              setShowMobileCaptainMenu(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
+                          >
+                            <UserPlus className="w-4 h-4" />
+                            Join Requests
+                            <span className="ml-auto bg-lime-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                              {pendingMembershipRequests.length}
+                            </span>
+                          </button>
+                        )}
                         {pendingItems.length > 0 && (
                           <button
                             onClick={() => {
@@ -784,7 +952,7 @@ export default function GroupPage() {
                             className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
                           >
                             <UserPlus className="w-4 h-4" />
-                            Pending
+                            Pending Items
                             <span className="ml-auto bg-lime-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                               {pendingItems.length}
                             </span>
@@ -812,7 +980,7 @@ export default function GroupPage() {
                         </button>
                       </>
                     )}
-                    {/* Add button - available to all members */}
+                    {/* Add button - available to all who can rate */}
                     <button
                       onClick={() => {
                         setShowAddMemberModal(true);
@@ -823,6 +991,19 @@ export default function GroupPage() {
                       <UserPlus className="w-4 h-4" />
                       {isCaptain ? 'Add Item' : 'Suggest Item'}
                     </button>
+                    {/* Leave Group - for actual members (not captain) */}
+                    {isActualMember && !isCaptain && (
+                      <button
+                        onClick={() => {
+                          handleLeaveGroup();
+                          setShowMobileCaptainMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700 text-red-400"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Leave Group
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -939,6 +1120,19 @@ export default function GroupPage() {
                     </span>
                   </Button>
                 )}
+                {pendingMembershipRequests.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowMembershipRequestsModal(true)}
+                    className="relative"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Join Requests
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {pendingMembershipRequests.length}
+                    </span>
+                  </Button>
+                )}
                 {pendingItems.length > 0 && (
                   <Button
                     variant="outline"
@@ -946,7 +1140,7 @@ export default function GroupPage() {
                     className="relative"
                   >
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Pending
+                    Pending Items
                     <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-500 text-white text-xs rounded-full flex items-center justify-center">
                       {pendingItems.length}
                     </span>
@@ -962,7 +1156,7 @@ export default function GroupPage() {
                 </Button>
               </>
             )}
-            {/* Add/Suggest button - available to all members */}
+            {/* Add/Suggest button - available to all who can rate */}
             {canRate && (
               <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
@@ -1567,44 +1761,95 @@ export default function GroupPage() {
         </div>
       </Modal>
 
-      {/* Members Modal */}
+      {/* Membership Requests Modal (Captain only) */}
+      <Modal
+        isOpen={showMembershipRequestsModal}
+        onClose={() => setShowMembershipRequestsModal(false)}
+        title="Membership Requests"
+      >
+        <div className="space-y-4">
+          {pendingMembershipRequests.length === 0 ? (
+            <p className="text-gray-500 dark:text-gray-400 text-center py-4">
+              No pending membership requests
+            </p>
+          ) : (
+            pendingMembershipRequests.map((request) => (
+              <div
+                key={request.id}
+                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <Avatar
+                    src={request.imageUrl}
+                    alt={request.name}
+                    size="md"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {request.name}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Requested on {request.invitedAt.toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRespondToMembershipRequest(request.id, false)}
+                  >
+                    <UserX className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleRespondToMembershipRequest(request.id, true)}
+                  >
+                    <UserCheck className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Modal>
+
+      {/* Members Modal - uses actualMembers (excludes followers) */}
       <Modal
         isOpen={showMembersModal}
         onClose={() => setShowMembersModal(false)}
         title="Group Members"
       >
         <div className="space-y-3 max-h-96 overflow-y-auto">
-          {members.filter(m => m.status === 'accepted').length === 0 ? (
+          {actualMembers.length === 0 ? (
             <p className="text-gray-400 text-center py-4">No members yet</p>
           ) : (
-            members
-              .filter(m => m.status === 'accepted')
-              .map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg"
-                >
-                  <Avatar
-                    src={member.imageUrl}
-                    alt={member.name}
-                    size="md"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-white truncate">{member.name}</p>
-                    <p className="text-sm text-gray-400 capitalize">{member.role}</p>
-                  </div>
-                  {member.role === 'captain' && (
-                    <span className="px-2 py-0.5 bg-lime-900/50 text-lime-400 text-xs rounded-full">
-                      Captain
-                    </span>
-                  )}
-                  {group?.coCaptainIds?.includes(member.clerkId || '') && member.role !== 'captain' && (
-                    <span className="px-2 py-0.5 bg-blue-900/50 text-blue-400 text-xs rounded-full">
-                      Co-Captain
-                    </span>
-                  )}
+            actualMembers.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg"
+              >
+                <Avatar
+                  src={member.imageUrl}
+                  alt={member.name}
+                  size="md"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-white truncate">{member.name}</p>
+                  <p className="text-sm text-gray-400 capitalize">{member.role}</p>
                 </div>
-              ))
+                {member.role === 'captain' && (
+                  <span className="px-2 py-0.5 bg-lime-900/50 text-lime-400 text-xs rounded-full">
+                    Captain
+                  </span>
+                )}
+                {group?.coCaptainIds?.includes(member.clerkId || '') && member.role !== 'captain' && (
+                  <span className="px-2 py-0.5 bg-blue-900/50 text-blue-400 text-xs rounded-full">
+                    Co-Captain
+                  </span>
+                )}
+              </div>
+            ))
           )}
         </div>
         <div className="mt-4 pt-4 border-t border-gray-700">

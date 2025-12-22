@@ -504,9 +504,9 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
     } as GroupMember;
   });
 
-  // Sort: captain first, then co-captains, then members
-  const roleOrder = { captain: 0, 'co-captain': 1, member: 2 };
-  return members.sort((a, b) => roleOrder[a.role] - roleOrder[b.role]);
+  // Sort: captain first, then co-captains, then members, then followers
+  const roleOrder: Record<string, number> = { captain: 0, 'co-captain': 1, member: 2, follower: 3 };
+  return members.sort((a, b) => (roleOrder[a.role] ?? 4) - (roleOrder[b.role] ?? 4));
 }
 
 export async function getMember(memberId: string): Promise<GroupMember | null> {
@@ -566,6 +566,74 @@ export async function updateMember(
 
 export async function removeMember(memberId: string): Promise<void> {
   await deleteDoc(doc(membersCollection, memberId));
+}
+
+// Follow a public group (adds to My Groups without becoming a member)
+export async function followGroup(
+  groupId: string,
+  clerkId: string,
+  email: string,
+  name: string,
+  imageUrl: string | null = null
+): Promise<GroupMember> {
+  // Check if already following or member
+  const existing = await getMemberByClerkId(groupId, clerkId);
+  if (existing) {
+    return existing;
+  }
+
+  return addMember(groupId, clerkId, email, name, imageUrl, 'follower', 'accepted');
+}
+
+// Unfollow a public group
+export async function unfollowGroup(groupId: string, clerkId: string): Promise<void> {
+  const member = await getMemberByClerkId(groupId, clerkId);
+  if (member && member.role === 'follower') {
+    await removeMember(member.id);
+  }
+}
+
+// Check if user is following a group
+export async function isFollowingGroup(groupId: string, clerkId: string): Promise<boolean> {
+  const member = await getMemberByClerkId(groupId, clerkId);
+  return member !== null && member.role === 'follower';
+}
+
+// Request membership for a public closed group
+export async function requestMembership(
+  groupId: string,
+  clerkId: string,
+  email: string,
+  name: string,
+  imageUrl: string | null = null
+): Promise<GroupMember> {
+  // Check if already a member or has pending request
+  const existing = await getMemberByClerkId(groupId, clerkId);
+  if (existing) {
+    return existing;
+  }
+
+  return addMember(groupId, clerkId, email, name, imageUrl, 'member', 'pending');
+}
+
+// Respond to membership request (captain action)
+export async function respondToMembershipRequest(
+  memberId: string,
+  approve: boolean
+): Promise<void> {
+  if (approve) {
+    await updateMember(memberId, { status: 'accepted', respondedAt: new Date() });
+  } else {
+    await removeMember(memberId);
+  }
+}
+
+// Leave group membership
+export async function leaveGroup(groupId: string, clerkId: string): Promise<void> {
+  const member = await getMemberByClerkId(groupId, clerkId);
+  if (member && member.role !== 'captain') {
+    await removeMember(member.id);
+  }
 }
 
 // ============ RATING OPERATIONS ============
@@ -960,9 +1028,9 @@ export function subscribeToMembers(
         respondedAt: data.respondedAt ? convertTimestamp(data.respondedAt) : null,
       } as GroupMember;
     });
-    // Sort: captain first, then co-captains, then members
-    const roleOrder = { captain: 0, 'co-captain': 1, member: 2 };
-    callback(members.sort((a, b) => roleOrder[a.role] - roleOrder[b.role]));
+    // Sort: captain first, then co-captains, then members, then followers
+    const roleOrder: Record<string, number> = { captain: 0, 'co-captain': 1, member: 2, follower: 3 };
+    callback(members.sort((a, b) => (roleOrder[a.role] ?? 4) - (roleOrder[b.role] ?? 4)));
   });
 }
 

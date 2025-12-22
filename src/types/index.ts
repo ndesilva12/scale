@@ -80,7 +80,8 @@ export interface GroupObject {
 }
 
 // ============ MEMBERS (users who belong to a group) ============
-export type MemberRole = 'captain' | 'co-captain' | 'member';
+// 'follower' is for public groups - they see it in "My Groups" but aren't actual members
+export type MemberRole = 'captain' | 'co-captain' | 'member' | 'follower';
 export type MemberStatus = 'pending' | 'accepted' | 'declined';
 
 export interface GroupMember {
