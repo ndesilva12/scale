@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
-import { Plus, Users, ChevronRight, Bell, TrendingUp, Flame, Eye, Lock, LockOpen } from 'lucide-react';
+import { Plus, Users, ChevronRight, Bell, TrendingUp, Flame, Eye, Lock, LockOpen, Wrench } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -28,6 +28,8 @@ export default function DashboardPage() {
   const [trendingGroups, setTrendingGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [fixingRatings, setFixingRatings] = useState(false);
+  const [fixResult, setFixResult] = useState<string | null>(null);
 
   // Load popular and trending groups (doesn't require login)
   useEffect(() => {
@@ -105,6 +107,20 @@ export default function DashboardPage() {
 
     setShowCreateModal(false);
     loadData();
+  };
+
+  const handleFixRatings = async () => {
+    setFixingRatings(true);
+    setFixResult(null);
+    try {
+      const response = await fetch('/api/fix-ratings', { method: 'POST' });
+      const data = await response.json();
+      setFixResult(`Fixed ${data.fixedCount || 0} ratings. ${data.unfixableCount || 0} could not be fixed.`);
+    } catch (error) {
+      setFixResult('Failed to fix ratings: ' + String(error));
+    } finally {
+      setFixingRatings(false);
+    }
   };
 
   const handleRespondToInvitation = async (invitation: Invitation, accept: boolean) => {
@@ -195,11 +211,23 @@ export default function DashboardPage() {
               Manage your groups and view member ratings
             </p>
           </div>
-          <Button variant="secondary" onClick={() => setShowCreateModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Group
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleFixRatings} disabled={fixingRatings}>
+              <Wrench className="w-4 h-4 mr-2" />
+              {fixingRatings ? 'Fixing...' : 'Fix Ratings'}
+            </Button>
+            <Button variant="secondary" onClick={() => setShowCreateModal(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Group
+            </Button>
+          </div>
         </div>
+
+        {fixResult && (
+          <div className="mb-4 p-4 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-300">
+            {fixResult}
+          </div>
+        )}
 
         {/* Groups Grid */}
         {user && groups.length === 0 ? (
