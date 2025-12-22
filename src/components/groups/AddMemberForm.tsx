@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { Upload, Link as LinkIcon, X, Copy, Check, Type, Globe, User } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { ItemType } from '@/types';
+import { ObjectType } from '@/types';
 
 type ImageSourceType = 'url' | 'upload';
 
@@ -14,7 +14,7 @@ interface AddMemberFormProps {
     name: string;
     placeholderImageUrl: string;
     description: string | null;
-    itemType: ItemType;
+    itemType: ObjectType;
     linkUrl: string | null;
     itemCategory: string | null;
   }) => Promise<void>;
@@ -26,7 +26,7 @@ interface AddMemberFormProps {
 }
 
 export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, existingEmails = [], groupId, itemCategories = [] }: AddMemberFormProps) {
-  const [itemType, setItemType] = useState<ItemType | null>(null);
+  const [itemType, setItemType] = useState<ObjectType | null>(null);
   const [itemCategory, setItemCategory] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');

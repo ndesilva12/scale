@@ -60,23 +60,22 @@ export default function JoinGroupPage() {
     setError(null);
 
     try {
-      // Add the user as a placeholder member (pending status)
-      const member = await addMember(
+      // Add the user as a member (pending status)
+      await addMember(
         groupId,
+        user.id, // clerkId
         user.emailAddresses[0]?.emailAddress || '',
         user.fullName || user.firstName || 'New Member',
-        null, // placeholderImageUrl
-        user.id, // clerkId
-        'pending', // status - requires captain approval
-        user.imageUrl
+        user.imageUrl || null, // imageUrl
+        'member', // role
+        'pending' // status - requires captain approval
       );
 
-      // Create an invitation record
+      // Create an invitation record for tracking
       await createInvitation(
         groupId,
         group.name,
         user.emailAddresses[0]?.emailAddress || '',
-        member.id,
         group.captainId,
         'Group Invite Link'
       );

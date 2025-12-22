@@ -7,8 +7,8 @@ import { UserPlus, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import { ClaimToken, GroupMember } from '@/types';
-import { getClaimTokenByToken, getMember, getGroup, claimProfile } from '@/lib/firestore';
+import { ClaimToken, GroupObject } from '@/types';
+import { getClaimTokenByToken, getObject, getGroup, claimObject } from '@/lib/firestore';
 
 interface ClaimPageProps {
   params: Promise<{ token: string }>;
@@ -19,7 +19,7 @@ export default function ClaimPage({ params }: ClaimPageProps) {
   const router = useRouter();
   const { user, isLoaded: isUserLoaded } = useUser();
   const [claimToken, setClaimToken] = useState<ClaimToken | null>(null);
-  const [member, setMember] = useState<GroupMember | null>(null);
+  const [targetObject, setTargetObject] = useState<GroupObject | null>(null);
   const [groupName, setGroupName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,10 +64,10 @@ export default function ClaimPage({ params }: ClaimPageProps) {
 
       setClaimToken(token);
 
-      // Fetch member details
-      const memberData = await getMember(token.memberId);
-      if (memberData) {
-        setMember(memberData);
+      // Fetch object details
+      const objectData = await getObject(token.objectId);
+      if (objectData) {
+        setTargetObject(objectData);
       }
 
       // Fetch group name
@@ -88,11 +88,12 @@ export default function ClaimPage({ params }: ClaimPageProps) {
 
     setClaiming(true);
     try {
-      const result = await claimProfile(
+      const result = await claimObject(
         claimToken.token,
         user.id,
-        user.fullName || user.firstName || member?.name || 'Member',
-        user.imageUrl
+        user.fullName || user.firstName || targetObject?.name || 'Member',
+        user.imageUrl,
+        user.emailAddresses[0]?.emailAddress || ''
       );
 
       if (result.success && result.groupId) {
@@ -205,19 +206,19 @@ export default function ClaimPage({ params }: ClaimPageProps) {
             </p>
           </div>
 
-          {member && (
+          {targetObject && (
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-4">
-                {(member.placeholderImageUrl || member.imageUrl) && (
+                {targetObject.imageUrl && (
                   <img
-                    src={member.placeholderImageUrl || member.imageUrl || ''}
-                    alt={member.name}
+                    src={targetObject.imageUrl}
+                    alt={targetObject.name}
                     className="w-12 h-12 rounded-full object-cover"
                   />
                 )}
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">
-                    {member.name}
+                    {targetObject.name}
                   </p>
                   {groupName && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">

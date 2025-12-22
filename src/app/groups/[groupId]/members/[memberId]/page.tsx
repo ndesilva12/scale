@@ -4,19 +4,19 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Calendar, TrendingUp, AlertCircle, Hand } from 'lucide-react';
+import { ArrowLeft, Calendar, TrendingUp, AlertCircle, Hand } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Avatar from '@/components/ui/Avatar';
-import { Group, GroupMember, AggregatedScore, Rating } from '@/types';
+import { Group, GroupObject, AggregatedScore, Rating } from '@/types';
 import {
   getGroup,
-  getMember,
-  getGroupMembers,
+  getObject,
+  getGroupObjects,
   getRatings,
   calculateAggregatedScores,
-  createClaimRequest,
+  createClaimToken,
 } from '@/lib/firestore';
 
 export default function MemberProfilePage() {
@@ -27,7 +27,7 @@ export default function MemberProfilePage() {
   const memberId = params.memberId as string;
 
   const [group, setGroup] = useState<Group | null>(null);
-  const [member, setMember] = useState<GroupMember | null>(null);
+  const [targetObject, setTargetObject] = useState<GroupObject | null>(null);
   const [scores, setScores] = useState<AggregatedScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
@@ -41,41 +41,42 @@ export default function MemberProfilePage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [groupData, memberData, membersData, ratingsData] = await Promise.all([
+      const [groupData, objectData, objectsData, ratingsData] = await Promise.all([
         getGroup(groupId),
-        getMember(memberId),
-        getGroupMembers(groupId),
+        getObject(memberId), // memberId is actually the objectId from the URL
+        getGroupObjects(groupId),
         getRatings(groupId),
       ]);
 
       setGroup(groupData);
-      setMember(memberData);
+      setTargetObject(objectData);
 
-      if (groupData && membersData.length > 0) {
+      if (groupData && objectsData.length > 0) {
         const calculatedScores = calculateAggregatedScores(
-          membersData,
+          objectsData,
           groupData.metrics,
           ratingsData,
           groupData.captainId
         );
-        // Filter to just this member's scores
-        setScores(calculatedScores.filter((s) => s.memberId === memberId));
+        // Filter to just this object's scores
+        setScores(calculatedScores.filter((s) => s.objectId === memberId));
       }
     } catch (error) {
-      console.error('Failed to load member data:', error);
+      console.error('Failed to load object data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleClaimMembership = async () => {
-    if (!user || !member) return;
+    if (!user || !targetObject) return;
 
     setClaiming(true);
     setClaimError(null);
 
     try {
-      await createClaimRequest(groupId, memberId, user.id);
+      // Create a claim token for this object
+      await createClaimToken(groupId, memberId, user.id); // memberId is objectId
       setClaimSuccess(true);
     } catch (error) {
       setClaimError('Failed to submit claim request. Please try again.');
@@ -84,9 +85,10 @@ export default function MemberProfilePage() {
     }
   };
 
+  // Can claim if it's a user-type object that hasn't been claimed yet
   const canClaim =
-    member?.status === 'placeholder' &&
-    member?.clerkId === null &&
+    targetObject?.objectType === 'user' &&
+    targetObject?.claimStatus === 'unclaimed' &&
     user &&
     !claimSuccess;
 
@@ -101,7 +103,7 @@ export default function MemberProfilePage() {
     );
   }
 
-  if (!group || !member) {
+  if (!group || !targetObject) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -109,10 +111,10 @@ export default function MemberProfilePage() {
           <Card className="p-8 text-center max-w-md">
             <AlertCircle className="w-12 h-12 mx-auto mb-4 text-lime-500" />
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Member Not Found
+              Item Not Found
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              This member may have been removed from the group.
+              This item may have been removed from the group.
             </p>
             <Link href={`/groups/${groupId}`}>
               <Button>Back to Group</Button>
@@ -165,36 +167,27 @@ export default function MemberProfilePage() {
         <Card className="p-6 md:p-8 mb-6">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
             <Avatar
-              src={member.imageUrl || member.placeholderImageUrl}
-              alt={member.name}
+              src={targetObject.imageUrl}
+              alt={targetObject.name}
               size="xl"
               className="w-24 h-24"
             />
 
             <div className="flex-1 text-center sm:text-left">
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {member.name}
+                {targetObject.name}
               </h1>
 
-              {member.description && (
+              {targetObject.description && (
                 <p className="text-gray-600 dark:text-gray-300 mb-2">
-                  {member.description}
+                  {targetObject.description}
                 </p>
               )}
 
               <div className="flex flex-col sm:flex-row items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-                {member.email && (
-                  <>
-                    <span className="flex items-center gap-1">
-                      <Mail className="w-4 h-4" />
-                      {member.email}
-                    </span>
-                    <span className="hidden sm:inline">•</span>
-                  </>
-                )}
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
-                  Joined {member.invitedAt.toLocaleDateString()}
+                  Added {targetObject.createdAt.toLocaleDateString()}
                 </span>
               </div>
 

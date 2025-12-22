@@ -27,33 +27,39 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
+import Avatar from '@/components/ui/Avatar';
 import Select from '@/components/ui/Select';
 import MemberGraph from '@/components/graph/MemberGraph';
 import DataTable from '@/components/graph/DataTable';
 import AddMemberForm from '@/components/groups/AddMemberForm';
 import RatingForm from '@/components/groups/RatingForm';
-import { Group, GroupMember, Rating, AggregatedScore, ClaimRequest, Metric, MetricPrefix, MetricSuffix, PendingItem, ItemType } from '@/types';
+import { Group, GroupMember, GroupObject, Rating, AggregatedScore, ClaimRequest, Metric, MetricPrefix, MetricSuffix, PendingObject, ObjectType } from '@/types';
 import {
   subscribeToGroup,
   subscribeToMembers,
+  subscribeToObjects,
   subscribeToRatings,
-  subscribeToPendingItems,
+  subscribeToPendingObjects,
   addMember,
+  addObject,
+  removeObject,
+  updateObject,
   createInvitation,
   submitRating,
   calculateAggregatedScores,
   getGroupClaimRequests,
   respondToClaimRequest,
-  updateMemberVisibility,
-  uploadMemberImage,
+  updateObjectVisibility,
+  uploadObjectImage,
   updateMember,
   updateGroup,
   removeMember,
   createClaimToken,
   addCoCaptain,
   removeCoCaptain,
-  submitPendingItem,
-  respondToPendingItem,
+  submitPendingObject,
+  respondToPendingObject,
+  deleteGroup,
 } from '@/lib/firestore';
 import Input from '@/components/ui/Input';
 
@@ -68,9 +74,10 @@ export default function GroupPage() {
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
+  const [objects, setObjects] = useState<GroupObject[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [claimRequests, setClaimRequests] = useState<ClaimRequest[]>([]);
-  const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
+  const [pendingItems, setPendingItems] = useState<PendingObject[]>([]);
   const [scores, setScores] = useState<AggregatedScore[]>([]);
   const [loading, setLoading] = useState(true);
   // Initialize viewMode from URL params, default to 'graph'
@@ -95,7 +102,10 @@ export default function GroupPage() {
   const [editingIsPublic, setEditingIsPublic] = useState(true);
   const [editingIsOpen, setEditingIsOpen] = useState(false);
   const [savingGroupSettings, setSavingGroupSettings] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState(false);
   const [showMobileCaptainMenu, setShowMobileCaptainMenu] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [joiningGroup, setJoiningGroup] = useState(false);
 
   // Graph state
   const [xMetricId, setXMetricId] = useState<string>('');
@@ -165,24 +175,26 @@ export default function GroupPage() {
     });
 
     const unsubscribeMembers = subscribeToMembers(groupId, setMembers);
+    const unsubscribeObjects = subscribeToObjects(groupId, setObjects);
     const unsubscribeRatings = subscribeToRatings(groupId, setRatings);
-    const unsubscribePendingItems = subscribeToPendingItems(groupId, setPendingItems);
+    const unsubscribePendingItems = subscribeToPendingObjects(groupId, setPendingItems);
 
     return () => {
       unsubscribeGroup();
       unsubscribeMembers();
+      unsubscribeObjects();
       unsubscribeRatings();
       unsubscribePendingItems();
     };
   }, [groupId]);
 
-  // Calculate scores when ratings or members change
+  // Calculate scores when ratings or objects change
   useEffect(() => {
-    if (group && members.length > 0) {
-      const calculatedScores = calculateAggregatedScores(members, group.metrics, ratings, group.captainId);
+    if (group && objects.length > 0) {
+      const calculatedScores = calculateAggregatedScores(objects, group.metrics, ratings, group.captainId);
       setScores(calculatedScores);
     }
-  }, [group, members, ratings]);
+  }, [group, objects, ratings]);
 
   // Load claim requests for captain
   useEffect(() => {
@@ -204,13 +216,12 @@ export default function GroupPage() {
       console.log('Auto-adding captain as member...');
       await addMember(
         groupId,
+        user.id, // clerkId
         user.emailAddresses[0]?.emailAddress || '',
         user.fullName || user.firstName || 'Captain',
-        null, // placeholderImageUrl
-        user.id, // clerkId
-        'accepted', // status
-        user.imageUrl, // imageUrl
-        true // isCaptain
+        user.imageUrl || null, // imageUrl
+        'captain', // role
+        'accepted' // status
       );
     };
 
@@ -220,7 +231,7 @@ export default function GroupPage() {
     }
   }, [group, members, isCaptain, user, groupId, loading]);
 
-  const handleAddMember = async (data: {
+  const handleAddObject = async (data: {
     email: string | null;
     name: string;
     placeholderImageUrl: string;
@@ -233,39 +244,30 @@ export default function GroupPage() {
 
     if (isCaptain) {
       // Captain can add items directly
-      const member = await addMember(
+      const obj = await addObject(
         groupId,
-        data.email,
         data.name,
-        data.placeholderImageUrl || null,
-        null, // clerkId
-        'placeholder', // status
-        null, // imageUrl
-        false, // isCaptain
         data.description,
+        data.placeholderImageUrl || null,
         data.itemType,
         data.linkUrl,
         data.itemCategory
       );
 
-      // Only create invitation if email is provided and item is a user type
+      // Create claim token for user-type objects
       if (data.email && data.itemType === 'user') {
-        await createInvitation(
-          groupId,
-          group.name,
-          data.email,
-          member.id,
-          user.id,
-          user.fullName || user.emailAddresses[0]?.emailAddress || 'Unknown'
-        );
+        await createClaimToken(groupId, obj.id, user.id, data.email);
       }
     } else {
       // Non-captain submits item for approval
-      await submitPendingItem(
+      await submitPendingObject(
         groupId,
         data.name,
         data.description,
         data.placeholderImageUrl || null,
+        data.itemType,
+        data.linkUrl,
+        data.itemCategory,
         user.id,
         user.fullName || user.emailAddresses[0]?.emailAddress || 'Unknown'
       );
@@ -275,21 +277,21 @@ export default function GroupPage() {
     setShowAddMemberModal(false);
   };
 
-  const handleSubmitRating = async (metricId: string, targetMemberId: string, value: number) => {
+  const handleSubmitRating = async (metricId: string, targetObjectId: string, value: number) => {
     if (!user) return;
-    await submitRating(groupId, metricId, user.id, targetMemberId, value);
+    await submitRating(groupId, metricId, user.id, targetObjectId, value);
   };
 
-  const handleMemberClick = (member: GroupMember) => {
-    router.push(`/groups/${groupId}/members/${member.id}`);
+  const handleObjectClick = (obj: GroupObject) => {
+    router.push(`/groups/${groupId}/members/${obj.id}`);
   };
 
-  const handleToggleVisibility = async (memberId: string, visible: boolean) => {
-    await updateMemberVisibility(memberId, visible);
+  const handleToggleVisibility = async (objectId: string, visible: boolean) => {
+    await updateObjectVisibility(objectId, visible);
   };
 
-  const handleEditMember = async (memberId: string, data: { name: string; email: string; imageUrl?: string }) => {
-    await updateMember(memberId, { name: data.name, email: data.email, placeholderImageUrl: data.imageUrl });
+  const handleEditObject = async (objectId: string, data: { name: string; description?: string }) => {
+    await updateObject(objectId, { name: data.name, description: data.description || null });
   };
 
   const handleOpenMetricsModal = () => {
@@ -334,9 +336,9 @@ export default function GroupPage() {
     setEditingMetrics(editingMetrics.filter((_, i) => i !== index));
   };
 
-  const handleUploadMemberImage = async (memberId: string, file: File) => {
-    const imageUrl = await uploadMemberImage(groupId, file);
-    await updateMember(memberId, { placeholderImageUrl: imageUrl });
+  const handleUploadObjectImage = async (objectId: string, file: File) => {
+    const imageUrl = await uploadObjectImage(groupId, file);
+    await updateObject(objectId, { imageUrl: imageUrl });
   };
 
   const handleApproveClaimRequest = async (request: ClaimRequest) => {
@@ -374,6 +376,7 @@ export default function GroupPage() {
         captainControlEnabled: editingCaptainControlEnabled,
         isPublic: editingIsPublic,
         isOpen: editingIsOpen,
+        lastActivityAt: new Date(), // Refresh activity timestamp for trending
       });
       setShowGroupSettingsModal(false);
     } finally {
@@ -381,33 +384,76 @@ export default function GroupPage() {
     }
   };
 
+  const handleDeleteGroup = async () => {
+    if (!group || !isOriginalCaptain) return;
+
+    const confirmed = confirm(
+      `Are you sure you want to delete "${group.name}"? This will permanently delete all members, objects, ratings, and data associated with this group. This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingGroup(true);
+    try {
+      await deleteGroup(groupId);
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Failed to delete group:', error);
+      alert('Failed to delete group. Please try again.');
+    } finally {
+      setDeletingGroup(false);
+    }
+  };
+
+  const handleJoinGroup = async () => {
+    if (!user || !group) return;
+
+    setJoiningGroup(true);
+    try {
+      await addMember(
+        groupId,
+        user.id,
+        user.emailAddresses[0]?.emailAddress || '',
+        user.fullName || user.firstName || 'Member',
+        user.imageUrl || null,
+        'member',
+        'accepted' // Auto-accept for open groups
+      );
+    } catch (error) {
+      console.error('Failed to join group:', error);
+      alert('Failed to join group. Please try again.');
+    } finally {
+      setJoiningGroup(false);
+    }
+  };
+
   // Check if axes are locked
   const isYAxisLocked = !!group?.lockedYMetricId;
   const isXAxisLocked = !!group?.lockedXMetricId;
 
-  const handleRemoveMember = async (memberId: string) => {
-    if (!confirm('Are you sure you want to remove this member? This will also delete their ratings.')) {
+  const handleRemoveObject = async (objectId: string) => {
+    if (!confirm('Are you sure you want to remove this item? This will also delete its ratings.')) {
       return;
     }
-    await removeMember(memberId);
+    await removeObject(objectId);
   };
 
-  const handleCreateClaimLink = async (memberId: string, email?: string) => {
+  const handleCreateClaimLink = async (objectId: string, email?: string) => {
     if (!user) return null;
-    const claimToken = await createClaimToken(groupId, memberId, user.id, email || null);
+    const claimToken = await createClaimToken(groupId, objectId, user.id, email || null);
     return `${window.location.origin}/claim/${claimToken.token}`;
   };
 
-  const handleCopyClaimLink = async (memberId: string) => {
-    const link = await handleCreateClaimLink(memberId);
+  const handleCopyClaimLink = async (objectId: string) => {
+    const link = await handleCreateClaimLink(objectId);
     if (link) {
       await navigator.clipboard.writeText(link);
       alert('Claim link copied to clipboard!');
     }
   };
 
-  const handleSendClaimInvite = async (memberId: string, email: string) => {
-    const link = await handleCreateClaimLink(memberId, email);
+  const handleSendClaimInvite = async (objectId: string, email: string) => {
+    const link = await handleCreateClaimLink(objectId, email);
     if (link) {
       // For now, just copy the link. In the future, this could send an email
       await navigator.clipboard.writeText(link);
@@ -415,16 +461,8 @@ export default function GroupPage() {
     }
   };
 
-  const handleToggleDisplayMode = async (memberId: string, mode: 'user' | 'custom') => {
-    await updateMember(memberId, { displayMode: mode });
-  };
-
-  const handleUpdateCustomDisplay = async (memberId: string, data: { customName?: string; customImageUrl?: string }) => {
-    await updateMember(memberId, data);
-  };
-
-  const handleToggleRatingMode = async (memberId: string, mode: 'captain' | 'group') => {
-    await updateMember(memberId, { ratingMode: mode });
+  const handleToggleRatingMode = async (objectId: string, mode: 'captain' | 'group') => {
+    await updateObject(objectId, { ratingMode: mode });
   };
 
   // Toggle co-captain status for a member
@@ -439,38 +477,51 @@ export default function GroupPage() {
     }
   };
 
-  // Toggle whether a specific metric applies to a specific item
-  const handleToggleMetricForItem = async (memberId: string, metricId: string, enabled: boolean) => {
-    const member = members.find(m => m.id === memberId);
-    if (!member) return;
+  // Toggle whether a specific metric applies to a specific object
+  const handleToggleMetricForObject = async (objectId: string, metricId: string, enabled: boolean) => {
+    const obj = objects.find((o) => o.id === objectId);
+    if (!obj) return;
 
-    const currentDisabled = member.disabledMetricIds || [];
+    const currentDisabled = obj.disabledMetricIds || [];
+    const currentEnabled = obj.enabledMetricIds || [];
     let newDisabled: string[];
+    let newEnabled: string[];
 
     if (enabled) {
-      // Remove from disabled list
-      newDisabled = currentDisabled.filter(id => id !== metricId);
+      // Remove from disabled list and add to enabled list
+      newDisabled = currentDisabled.filter((id: string) => id !== metricId);
+      // Add to enabled list if not already there (to override category restrictions)
+      newEnabled = currentEnabled.includes(metricId)
+        ? currentEnabled
+        : [...currentEnabled, metricId];
     } else {
-      // Add to disabled list
-      newDisabled = [...currentDisabled, metricId];
+      // Remove from enabled list and add to disabled list
+      newEnabled = currentEnabled.filter((id: string) => id !== metricId);
+      // Add to disabled list if not already there
+      newDisabled = currentDisabled.includes(metricId)
+        ? currentDisabled
+        : [...currentDisabled, metricId];
     }
 
-    await updateMember(memberId, { disabledMetricIds: newDisabled });
+    await updateObject(objectId, {
+      disabledMetricIds: newDisabled,
+      enabledMetricIds: newEnabled,
+    });
   };
 
   // Handle pending item approval/rejection
-  const handleApprovePendingItem = async (item: PendingItem) => {
+  const handleApprovePendingItem = async (item: PendingObject) => {
     if (!user) return;
-    await respondToPendingItem(item.id, true, user.id, groupId);
+    await respondToPendingObject(item.id, true, user.id, groupId);
   };
 
-  const handleRejectPendingItem = async (item: PendingItem) => {
+  const handleRejectPendingItem = async (item: PendingObject) => {
     if (!user) return;
-    await respondToPendingItem(item.id, false, user.id, groupId);
+    await respondToPendingObject(item.id, false, user.id, groupId);
   };
 
-  // Get visible members for the graph
-  const visibleMembers = members.filter((m) => m.visibleInGraph);
+  // Get visible objects for the graph
+  const visibleObjects = objects.filter((obj) => obj.visibleInGraph);
 
   // Metric options for selectors
   const metricOptions = group?.metrics.map((m) => ({ value: m.id, label: m.name })) || [];
@@ -538,14 +589,38 @@ export default function GroupPage() {
       <main className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-2 sm:py-8 ${viewMode === 'graph' ? 'flex flex-col overflow-hidden' : ''}`}>
         {/* Group title and description - shown above all controls */}
         <div className="mb-3 sm:mb-4">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white truncate">
-            {group.name}
-          </h1>
-          {group.description && (
-            <p className="text-sm sm:text-base text-gray-400 mt-1 line-clamp-2">
-              {group.description}
-            </p>
-          )}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white truncate">
+                {group.name}
+              </h1>
+              {group.description && (
+                <p className="text-sm sm:text-base text-gray-400 mt-1 line-clamp-2">
+                  {group.description}
+                </p>
+              )}
+              {/* Member count - clickable to show member list */}
+              <button
+                onClick={() => setShowMembersModal(true)}
+                className="mt-2 flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                <Users className="w-4 h-4" />
+                <span>{members.filter(m => m.status === 'accepted').length} members</span>
+              </button>
+            </div>
+            {/* Join button for non-members on open groups */}
+            {group.isOpen && user && !isMember && !isCaptain && (
+              <Button
+                variant="secondary"
+                onClick={handleJoinGroup}
+                loading={joiningGroup}
+                className="flex-shrink-0"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Join Group
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Mobile header - back + axis selectors + menu */}
@@ -916,12 +991,12 @@ export default function GroupPage() {
             <div className="flex-1 w-full p-2 sm:p-6 sm:pl-12 sm:pb-8 min-h-0">
               <div className="w-full h-full sm:min-h-0 sm:aspect-[4/3] lg:aspect-[16/10] sm:max-h-[70vh]">
                 <MemberGraph
-                  members={visibleMembers}
+                  objects={visibleObjects}
                   metrics={group.metrics}
                   scores={scores}
                   xMetricId={xMetricId}
                   yMetricId={yMetricId}
-                  onMemberClick={handleMemberClick}
+                  onObjectClick={handleObjectClick}
                   currentUserId={user?.id || null}
                   existingRatings={ratings}
                   onSubmitRating={handleSubmitRating}
@@ -936,11 +1011,11 @@ export default function GroupPage() {
         {viewMode === 'table' && (
           <div className="bg-gray-900 rounded-b-xl -mx-4 sm:mx-0 p-2 sm:p-6 overflow-auto max-h-[calc(100vh-200px)]">
             <DataTable
-              members={members}
+              objects={objects}
               metrics={group.metrics}
               scores={scores}
               groupId={groupId}
-              onMemberClick={handleMemberClick}
+              onObjectClick={handleObjectClick}
               onToggleVisibility={handleToggleVisibility}
               showVisibilityToggle={true}
               currentUserId={user?.id || null}
@@ -948,23 +1023,12 @@ export default function GroupPage() {
               onSubmitRating={handleSubmitRating}
               canRate={canRate}
               isCaptain={isCaptain}
-              isOriginalCaptain={isOriginalCaptain}
-              captainControlEnabled={group.captainControlEnabled}
-              coCaptainIds={group.coCaptainIds}
-              onEditMember={handleEditMember}
-              onUploadMemberImage={handleUploadMemberImage}
-              onUploadCustomImage={async (memberId, file) => {
-                const imageUrl = await uploadMemberImage(groupId, file);
-                await updateMember(memberId, { customImageUrl: imageUrl });
-              }}
-              onRemoveMember={handleRemoveMember}
+              onEditObject={handleEditObject}
+              onUploadObjectImage={handleUploadObjectImage}
+              onRemoveObject={handleRemoveObject}
               onCopyClaimLink={handleCopyClaimLink}
-              onSendClaimInvite={handleSendClaimInvite}
-              onToggleDisplayMode={handleToggleDisplayMode}
-              onUpdateCustomDisplay={handleUpdateCustomDisplay}
               onToggleRatingMode={handleToggleRatingMode}
-              onToggleCoCaptain={handleToggleCoCaptain}
-              onToggleMetricForItem={handleToggleMetricForItem}
+              onToggleMetricForObject={handleToggleMetricForObject}
             />
           </div>
         )}
@@ -972,18 +1036,20 @@ export default function GroupPage() {
         {viewMode === 'rate' && canRate && (
           <div className="bg-gray-900 rounded-b-xl -mx-4 sm:mx-0 p-4 sm:p-6">
             <RatingForm
+              objects={objects}
               members={members}
               metrics={group.metrics}
               currentUserId={user?.id || ''}
               existingRatings={ratings}
               onSubmitRating={handleSubmitRating}
               isCaptain={isCaptain}
+              isGroupOpen={group.isOpen}
             />
           </div>
         )}
 
         {/* Empty state for no items */}
-        {members.length === 0 && (
+        {objects.length === 0 && (
           <Card className="p-12 text-center">
             <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
@@ -1011,9 +1077,9 @@ export default function GroupPage() {
         title={isCaptain ? 'Add Item' : 'Suggest Item'}
       >
         <AddMemberForm
-          onSubmit={handleAddMember}
+          onSubmit={handleAddObject}
           onCancel={() => setShowAddMemberModal(false)}
-          onUploadImage={(file) => uploadMemberImage(groupId, file)}
+          onUploadImage={(file) => uploadObjectImage(groupId, file)}
           existingEmails={members.filter((m) => m.email).map((m) => m.email!.toLowerCase())}
           groupId={groupId}
           itemCategories={group?.itemCategories || []}
@@ -1033,7 +1099,7 @@ export default function GroupPage() {
             </p>
           ) : (
             claimRequests.map((request) => {
-              const placeholder = members.find((m) => m.id === request.placeholderMemberId);
+              const targetObject = objects.find((obj) => obj.id === request.objectId);
               return (
                 <div
                   key={request.id}
@@ -1041,7 +1107,7 @@ export default function GroupPage() {
                 >
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">
-                      Claiming: {placeholder?.name || 'Unknown'}
+                      Claiming: {targetObject?.name || 'Unknown'}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       Requested on {request.createdAt.toLocaleDateString()}
@@ -1442,6 +1508,25 @@ export default function GroupPage() {
               </button>
             </div>
           </div>
+
+          {/* Danger Zone - Only for original captain */}
+          {isOriginalCaptain && (
+            <div className="mt-6 p-4 border border-red-500/30 bg-red-500/10 rounded-lg">
+              <h3 className="text-sm font-medium text-red-400 mb-2">Danger Zone</h3>
+              <p className="text-xs text-gray-400 mb-3">
+                Permanently delete this group and all its data. This cannot be undone.
+              </p>
+              <Button
+                variant="outline"
+                onClick={handleDeleteGroup}
+                loading={deletingGroup}
+                className="w-full border-red-500/50 text-red-400 hover:bg-red-500/20"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Group
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -1450,6 +1535,53 @@ export default function GroupPage() {
           </Button>
           <Button variant="secondary" onClick={handleSaveGroupSettings} loading={savingGroupSettings} className="flex-1">
             Save Settings
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Members Modal */}
+      <Modal
+        isOpen={showMembersModal}
+        onClose={() => setShowMembersModal(false)}
+        title="Group Members"
+      >
+        <div className="space-y-3 max-h-96 overflow-y-auto">
+          {members.filter(m => m.status === 'accepted').length === 0 ? (
+            <p className="text-gray-400 text-center py-4">No members yet</p>
+          ) : (
+            members
+              .filter(m => m.status === 'accepted')
+              .map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg"
+                >
+                  <Avatar
+                    src={member.imageUrl}
+                    alt={member.name}
+                    size="md"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-white truncate">{member.name}</p>
+                    <p className="text-sm text-gray-400 capitalize">{member.role}</p>
+                  </div>
+                  {member.role === 'captain' && (
+                    <span className="px-2 py-0.5 bg-lime-900/50 text-lime-400 text-xs rounded-full">
+                      Captain
+                    </span>
+                  )}
+                  {group?.coCaptainIds?.includes(member.clerkId || '') && member.role !== 'captain' && (
+                    <span className="px-2 py-0.5 bg-blue-900/50 text-blue-400 text-xs rounded-full">
+                      Co-Captain
+                    </span>
+                  )}
+                </div>
+              ))
+          )}
+        </div>
+        <div className="mt-4 pt-4 border-t border-gray-700">
+          <Button variant="outline" onClick={() => setShowMembersModal(false)} className="w-full">
+            Close
           </Button>
         </div>
       </Modal>

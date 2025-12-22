@@ -2,66 +2,70 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import { GroupMember, Metric, Rating, metricAppliesToItem } from '@/types';
+import { GroupMember, GroupObject, Metric, Rating, metricAppliesToObject, getObjectDisplayName, getObjectDisplayImage } from '@/types';
 import Slider from '@/components/ui/Slider';
 import Avatar from '@/components/ui/Avatar';
 
 interface RatingFormProps {
+  objects: GroupObject[];
   members: GroupMember[];
   metrics: Metric[];
   currentUserId: string;
   existingRatings: Rating[];
-  onSubmitRating: (metricId: string, targetMemberId: string, value: number) => Promise<void>;
+  onSubmitRating: (metricId: string, targetObjectId: string, value: number) => Promise<void>;
   isCaptain?: boolean;
+  isGroupOpen?: boolean;
 }
 
 export default function RatingForm({
+  objects,
   members,
   metrics,
   currentUserId,
   existingRatings,
   onSubmitRating,
   isCaptain = false,
+  isGroupOpen = false,
 }: RatingFormProps) {
-  const [selectedMember, setSelectedMember] = useState<GroupMember | null>(null);
+  const [selectedObject, setSelectedObject] = useState<GroupObject | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const saveTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
 
-  // Filter to only active members (accepted or placeholder)
-  // If not captain, also exclude members with ratingMode === 'captain' (captain-only input)
-  const activeMembers = members.filter(
-    (m) => (m.status === 'accepted' || m.status === 'placeholder') &&
-      (isCaptain || m.ratingMode !== 'captain')
+  // Filter to only visible objects
+  // If not captain, also exclude objects with ratingMode === 'captain' (captain-only input)
+  const rateableObjects = objects.filter(
+    (obj) => obj.visibleInGraph &&
+      (isCaptain || obj.ratingMode !== 'captain')
   );
 
-  // Get current user's member record
+  // Get current user's member record to check if they can rate
   const currentMember = members.find((m) => m.clerkId === currentUserId);
 
-  // Filter metrics based on selected member's category
+  // Filter metrics based on selected object's category
   const applicableMetrics = useMemo(() => {
-    if (!selectedMember) return metrics;
-    return metrics.filter((metric) => metricAppliesToItem(metric, selectedMember));
-  }, [selectedMember, metrics]);
+    if (!selectedObject) return metrics;
+    return metrics.filter((metric) => metricAppliesToObject(metric, selectedObject));
+  }, [selectedObject, metrics]);
 
   useEffect(() => {
-    if (selectedMember) {
-      // Load existing ratings for this member (only for applicable metrics)
-      const memberRatings: Record<string, number> = {};
+    if (selectedObject) {
+      // Load existing ratings for this object (only for applicable metrics)
+      const objectRatings: Record<string, number> = {};
       applicableMetrics.forEach((metric) => {
         const existing = existingRatings.find(
           (r) =>
-            r.targetMemberId === selectedMember.id &&
+            r.targetObjectId === selectedObject.id &&
             r.metricId === metric.id &&
             r.raterId === currentUserId
         );
         // Use metric midpoint as default
         const defaultValue = Math.round((metric.minValue + metric.maxValue) / 2);
-        memberRatings[metric.id] = existing?.value ?? defaultValue;
+        objectRatings[metric.id] = existing?.value ?? defaultValue;
       });
-      setRatings(memberRatings);
+      setRatings(objectRatings);
     }
-  }, [selectedMember, existingRatings, applicableMetrics, currentUserId]);
+  }, [selectedObject, existingRatings, applicableMetrics, currentUserId]);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -71,10 +75,10 @@ export default function RatingForm({
   }, []);
 
   // Auto-save rating with debounce
-  const autoSaveRating = useCallback(async (metricId: string, memberId: string, value: number) => {
+  const autoSaveRating = useCallback(async (metricId: string, objectId: string, value: number) => {
     setSaving(metricId);
     try {
-      await onSubmitRating(metricId, memberId, value);
+      await onSubmitRating(metricId, objectId, value);
     } finally {
       setSaving(null);
     }
@@ -89,15 +93,15 @@ export default function RatingForm({
     }
 
     // Set new timeout for auto-save (500ms debounce)
-    if (selectedMember) {
+    if (selectedObject) {
       saveTimeoutRef.current[metricId] = setTimeout(() => {
-        autoSaveRating(metricId, selectedMember.id, value);
+        autoSaveRating(metricId, selectedObject.id, value);
       }, 500);
     }
   };
 
   const handleSaveAllRatings = async () => {
-    if (!selectedMember) return;
+    if (!selectedObject) return;
 
     // Clear all pending auto-saves
     Object.values(saveTimeoutRef.current).forEach(clearTimeout);
@@ -106,33 +110,38 @@ export default function RatingForm({
     setSaving('all');
     try {
       for (const metric of applicableMetrics) {
-        await onSubmitRating(metric.id, selectedMember.id, ratings[metric.id]);
+        await onSubmitRating(metric.id, selectedObject.id, ratings[metric.id]);
       }
     } finally {
       setSaving(null);
     }
   };
 
-  // Check if current user can rate (must be an accepted member)
-  const canRate = currentMember?.status === 'accepted';
+  // Check if current user can rate (accepted member OR open group with logged in user)
+  const canRate = currentMember?.status === 'accepted' || (isGroupOpen && !!currentUserId);
 
   if (!canRate) {
     return (
       <div className="p-6 text-center bg-gray-700 rounded-lg">
         <p className="text-gray-400">
-          You must be an accepted member of this group to submit ratings.
+          {isGroupOpen
+            ? 'You must be signed in to submit ratings.'
+            : 'You must be an accepted member of this group to submit ratings.'}
         </p>
       </div>
     );
   }
 
+  // Check if this object is claimed by the current user (for self-rating message)
+  const isOwnObject = selectedObject?.claimedByClerkId === currentUserId;
+
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Mobile: Show back button and rating header when member selected */}
-      {selectedMember && (
+      {/* Mobile: Show back button and rating header when object selected */}
+      {selectedObject && (
         <div className="sm:hidden">
           <button
-            onClick={() => setSelectedMember(null)}
+            onClick={() => setSelectedObject(null)}
             className="flex items-center gap-1 text-gray-400 hover:text-white mb-3"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -140,13 +149,13 @@ export default function RatingForm({
           </button>
           <div className="flex items-center gap-3 mb-3">
             <Avatar
-              src={selectedMember.imageUrl || selectedMember.placeholderImageUrl}
-              alt={selectedMember.name}
+              src={getObjectDisplayImage(selectedObject)}
+              alt={getObjectDisplayName(selectedObject)}
               size="md"
             />
             <div>
               <h3 className="text-base font-semibold text-white">
-                Rating {selectedMember.name}
+                Rating {getObjectDisplayName(selectedObject)}
               </h3>
               <p className="text-xs text-gray-400">
                 Auto-saves as you adjust
@@ -156,39 +165,39 @@ export default function RatingForm({
         </div>
       )}
 
-      {/* Member selector - hidden on mobile when member selected */}
-      <div className={selectedMember ? 'hidden sm:block' : ''}>
+      {/* Object selector - hidden on mobile when object selected */}
+      <div className={selectedObject ? 'hidden sm:block' : ''}>
         <label className="block text-sm font-medium text-gray-300 mb-3">
-          Select Member to Rate
+          Select Item to Rate
         </label>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
-          {activeMembers.map((member) => (
+          {rateableObjects.map((obj) => (
             <button
-              key={member.id}
-              onClick={() => setSelectedMember(member)}
+              key={obj.id}
+              onClick={() => setSelectedObject(obj)}
               className={`
                 p-2 sm:p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 sm:gap-2
                 ${
-                  selectedMember?.id === member.id
+                  selectedObject?.id === obj.id
                     ? 'border-lime-500 bg-lime-900/30'
                     : 'border-gray-700 hover:border-gray-600'
                 }
               `}
             >
               <Avatar
-                src={member.imageUrl || member.placeholderImageUrl}
-                alt={member.name}
+                src={getObjectDisplayImage(obj)}
+                alt={getObjectDisplayName(obj)}
                 size="md"
               />
               <span className="text-xs sm:text-sm font-medium text-white truncate w-full text-center">
-                {member.name}
+                {getObjectDisplayName(obj)}
               </span>
-              {member.itemCategory && (
+              {obj.category && (
                 <span className="text-[10px] px-1.5 py-0.5 bg-gray-700 text-gray-300 rounded">
-                  {member.itemCategory}
+                  {obj.category}
                 </span>
               )}
-              {member.clerkId === currentUserId && (
+              {obj.claimedByClerkId === currentUserId && (
                 <span className="text-[10px] sm:text-xs text-lime-400">(You)</span>
               )}
             </button>
@@ -197,21 +206,21 @@ export default function RatingForm({
       </div>
 
       {/* Rating sliders */}
-      {selectedMember && (
+      {selectedObject && (
         <div className="bg-gray-800/50 rounded-lg p-3 sm:p-6 border border-gray-700/50">
           {/* Desktop header - hidden on mobile */}
           <div className="hidden sm:flex items-center gap-4 mb-6 pb-4 border-b border-gray-600">
             <Avatar
-              src={selectedMember.imageUrl || selectedMember.placeholderImageUrl}
-              alt={selectedMember.name}
+              src={getObjectDisplayImage(selectedObject)}
+              alt={getObjectDisplayName(selectedObject)}
               size="lg"
             />
             <div>
               <h3 className="text-lg font-semibold text-white">
-                Rating {selectedMember.name}
+                Rating {getObjectDisplayName(selectedObject)}
               </h3>
               <p className="text-sm text-gray-400">
-                {selectedMember.clerkId === currentUserId
+                {isOwnObject
                   ? 'Self-rating - ratings auto-save as you adjust'
                   : 'Adjust the sliders to rate - auto-saves as you drag'}
               </p>

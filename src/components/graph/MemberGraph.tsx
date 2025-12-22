@@ -3,26 +3,26 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { User, ExternalLink, X } from 'lucide-react';
-import { GroupMember, Metric, AggregatedScore, Rating, getMemberDisplayName, getMemberDisplayImage } from '@/types';
+import { GroupObject, Metric, AggregatedScore, Rating, getObjectDisplayName, getObjectDisplayImage } from '@/types';
 import Button from '@/components/ui/Button';
 import Slider from '@/components/ui/Slider';
 
 interface MemberGraphProps {
-  members: GroupMember[];
+  objects: GroupObject[];
   metrics: Metric[];
   scores: AggregatedScore[];
   xMetricId: string;
   yMetricId: string;
-  onMemberClick: (member: GroupMember) => void;
+  onObjectClick: (obj: GroupObject) => void;
   currentUserId?: string | null;
   existingRatings?: Rating[];
-  onSubmitRating?: (metricId: string, targetMemberId: string, value: number) => Promise<void>;
+  onSubmitRating?: (metricId: string, targetObjectId: string, value: number) => Promise<void>;
   canRate?: boolean;
   isCaptain?: boolean;
 }
 
 interface PopupData {
-  member: GroupMember;
+  object: GroupObject;
   xValue: number;
   yValue: number;
   x: number;
@@ -31,12 +31,12 @@ interface PopupData {
 }
 
 export default function MemberGraph({
-  members,
+  objects,
   metrics,
   scores,
   xMetricId,
   yMetricId,
-  onMemberClick,
+  onObjectClick,
   currentUserId,
   existingRatings = [],
   onSubmitRating,
@@ -61,13 +61,13 @@ export default function MemberGraph({
     return `${metric.prefix}${value.toFixed(1)}${metric.suffix}`;
   };
 
-  // Calculate positions for each member
-  const plottedMembers = useMemo(() => {
-    const activeMembers = members.filter((m) => m.status === 'accepted' || m.status === 'placeholder');
-    const totalMembers = activeMembers.length;
+  // Calculate positions for each object
+  const plottedObjects = useMemo(() => {
+    const visibleObjects = objects.filter((obj) => obj.visibleInGraph);
+    const totalObjects = visibleObjects.length;
 
-    return activeMembers.map((member, index) => {
-      // When axis is "none" (empty string), spread members evenly
+    return visibleObjects.map((obj, index) => {
+      // When axis is "none" (empty string), spread objects evenly
       let xValue: number;
       let yValue: number;
       let xRaw: number;
@@ -75,11 +75,11 @@ export default function MemberGraph({
 
       if (!xMetricId) {
         // No X axis - spread horizontally
-        xValue = totalMembers > 1 ? (index / (totalMembers - 1)) * 80 + 10 : 50;
+        xValue = totalObjects > 1 ? (index / (totalObjects - 1)) * 80 + 10 : 50;
         xRaw = 0;
       } else {
         const xScore = scores.find(
-          (s) => s.memberId === member.id && s.metricId === xMetricId
+          (s) => s.objectId === obj.id && s.metricId === xMetricId
         );
         xRaw = xScore?.averageValue ?? 50;
         const xMin = xMetric?.minValue ?? 0;
@@ -89,11 +89,11 @@ export default function MemberGraph({
 
       if (!yMetricId) {
         // No Y axis - spread vertically
-        yValue = totalMembers > 1 ? (index / (totalMembers - 1)) * 80 + 10 : 50;
+        yValue = totalObjects > 1 ? (index / (totalObjects - 1)) * 80 + 10 : 50;
         yRaw = 0;
       } else {
         const yScore = scores.find(
-          (s) => s.memberId === member.id && s.metricId === yMetricId
+          (s) => s.objectId === obj.id && s.metricId === yMetricId
         );
         yRaw = yScore?.averageValue ?? 50;
         const yMin = yMetric?.minValue ?? 0;
@@ -102,41 +102,41 @@ export default function MemberGraph({
       }
 
       return {
-        member,
+        object: obj,
         xValue,
         yValue,
         xRaw,
         yRaw,
       };
     });
-  }, [members, scores, xMetricId, yMetricId, xMetric, yMetric]);
+  }, [objects, scores, xMetricId, yMetricId, xMetric, yMetric]);
 
-  // Load existing ratings when popup member changes
+  // Load existing ratings when popup object changes
   useEffect(() => {
-    if (popup?.member && currentUserId) {
-      const memberRatings: Record<string, number> = {};
+    if (popup?.object && currentUserId) {
+      const objectRatings: Record<string, number> = {};
       metrics.forEach((metric) => {
         const existing = existingRatings.find(
           (r) =>
-            r.targetMemberId === popup.member.id &&
+            r.targetObjectId === popup.object.id &&
             r.metricId === metric.id &&
             r.raterId === currentUserId
         );
         // Use metric midpoint as default
         const defaultValue = Math.round((metric.minValue + metric.maxValue) / 2);
-        memberRatings[metric.id] = existing?.value ?? defaultValue;
+        objectRatings[metric.id] = existing?.value ?? defaultValue;
       });
-      setRatings(memberRatings);
+      setRatings(objectRatings);
     }
-  }, [popup?.member?.id, existingRatings, metrics, currentUserId]);
+  }, [popup?.object?.id, existingRatings, metrics, currentUserId]);
 
   // Handle click outside to close pinned popup
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (popup?.isPinned && popupRef.current && !popupRef.current.contains(event.target as Node)) {
-        // Check if click was on a member avatar
+        // Check if click was on an object avatar
         const target = event.target as HTMLElement;
-        if (!target.closest('[data-member-avatar]')) {
+        if (!target.closest('[data-object-avatar]')) {
           setPopup(null);
         }
       }
@@ -147,7 +147,7 @@ export default function MemberGraph({
   }, [popup?.isPinned]);
 
   const handleMouseEnter = useCallback(
-    (data: typeof plottedMembers[0], event: React.MouseEvent) => {
+    (data: typeof plottedObjects[0], event: React.MouseEvent) => {
       // Don't override pinned popup on hover
       if (popup?.isPinned) return;
 
@@ -161,7 +161,7 @@ export default function MemberGraph({
       const containerRect = containerRef.current?.getBoundingClientRect();
 
       setPopup({
-        member: data.member,
+        object: data.object,
         xValue: data.xValue,
         yValue: data.yValue,
         x: rect.left + rect.width / 2 - (containerRect?.left || 0),
@@ -199,13 +199,13 @@ export default function MemberGraph({
   }, [popup?.isPinned]);
 
   const handleClick = useCallback(
-    (data: typeof plottedMembers[0], event: React.MouseEvent) => {
+    (data: typeof plottedObjects[0], event: React.MouseEvent) => {
       event.stopPropagation();
       const rect = event.currentTarget.getBoundingClientRect();
       const containerRect = containerRef.current?.getBoundingClientRect();
 
       setPopup({
-        member: data.member,
+        object: data.object,
         xValue: data.xValue,
         yValue: data.yValue,
         x: rect.left + rect.width / 2 - (containerRect?.left || 0),
@@ -217,12 +217,12 @@ export default function MemberGraph({
   );
 
   // Auto-save rating with debounce
-  const autoSaveRating = useCallback(async (metricId: string, memberId: string, value: number) => {
+  const autoSaveRating = useCallback(async (metricId: string, objectId: string, value: number) => {
     if (!onSubmitRating) return;
 
     setSaving(metricId);
     try {
-      await onSubmitRating(metricId, memberId, value);
+      await onSubmitRating(metricId, objectId, value);
     } finally {
       setSaving(null);
     }
@@ -237,9 +237,9 @@ export default function MemberGraph({
     }
 
     // Set new timeout for auto-save (500ms debounce)
-    if (popup?.member) {
+    if (popup?.object) {
       saveTimeoutRef.current[metricId] = setTimeout(() => {
-        autoSaveRating(metricId, popup.member.id, value);
+        autoSaveRating(metricId, popup.object.id, value);
       }, 500);
     }
   };
@@ -255,8 +255,8 @@ export default function MemberGraph({
   }, []);
 
   const handleViewProfile = () => {
-    if (popup?.member) {
-      onMemberClick(popup.member);
+    if (popup?.object) {
+      onObjectClick(popup.object);
     }
   };
 
@@ -270,8 +270,8 @@ export default function MemberGraph({
       className="relative w-full h-full min-h-[300px] sm:min-h-[400px] bg-gray-900 rounded-none sm:rounded-xl border border-gray-700/50"
     >
       {/* Y-axis label - hidden on mobile, shown on larger screens */}
-      <div className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-1 md:pr-2">
-        <div className="transform -rotate-90 whitespace-nowrap">
+      <div className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pl-1 md:pl-2">
+        <div className="transform -rotate-90 origin-right whitespace-nowrap">
           <span className={`px-3 py-1.5 rounded-full text-sm md:text-base font-semibold border ${
             yMetricId
               ? 'bg-gray-800 text-gray-200 border-gray-600 shadow-sm'
@@ -419,16 +419,16 @@ export default function MemberGraph({
         )}
       </div>
 
-      {/* Plotted members */}
+      {/* Plotted objects */}
       <div className="absolute inset-4 sm:inset-6 md:inset-8">
-        {plottedMembers.map((data) => {
-          const displayImage = getMemberDisplayImage(data.member);
-          const displayName = getMemberDisplayName(data.member);
+        {plottedObjects.map((data) => {
+          const displayImage = getObjectDisplayImage(data.object);
+          const displayName = getObjectDisplayName(data.object);
 
           return (
             <div
-              key={data.member.id}
-              data-member-avatar
+              key={data.object.id}
+              data-object-avatar
               className="absolute transform -translate-x-1/2 translate-y-1/2 cursor-pointer transition-transform duration-300 ease-out hover:scale-125 hover:z-10"
               style={{
                 left: `${data.xValue}%`,
@@ -549,13 +549,13 @@ export default function MemberGraph({
           )}
 
           <div className="p-4">
-            {/* Member info header */}
+            {/* Object info header */}
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
-                {getMemberDisplayImage(popup.member) ? (
+                {getObjectDisplayImage(popup.object) ? (
                   <Image
-                    src={getMemberDisplayImage(popup.member) || ''}
-                    alt={getMemberDisplayName(popup.member)}
+                    src={getObjectDisplayImage(popup.object) || ''}
+                    alt={getObjectDisplayName(popup.object)}
                     width={48}
                     height={48}
                     className="w-full h-full object-cover"
@@ -568,11 +568,11 @@ export default function MemberGraph({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-white truncate">
-                  {getMemberDisplayName(popup.member)}
+                  {getObjectDisplayName(popup.object)}
                 </div>
-                {popup.member.description && (
+                {popup.object.description && (
                   <div className="text-xs text-gray-400 truncate">
-                    {popup.member.description}
+                    {popup.object.description}
                   </div>
                 )}
               </div>
@@ -583,13 +583,13 @@ export default function MemberGraph({
               <div className="flex justify-between">
                 <span>{yMetric?.name}:</span>
                 <span className="font-medium text-white">
-                  {formatValue(plottedMembers.find(p => p.member.id === popup.member.id)?.yRaw ?? 0, yMetric)}
+                  {formatValue(plottedObjects.find(p => p.object.id === popup.object.id)?.yRaw ?? 0, yMetric)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>{xMetric?.name}:</span>
                 <span className="font-medium text-white">
-                  {formatValue(plottedMembers.find(p => p.member.id === popup.member.id)?.xRaw ?? 0, xMetric)}
+                  {formatValue(plottedObjects.find(p => p.object.id === popup.object.id)?.xRaw ?? 0, xMetric)}
                 </span>
               </div>
             </div>

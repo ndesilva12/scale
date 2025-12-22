@@ -228,12 +228,16 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
 
 export async function updateGroup(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'itemCategories' | 'defaultYMetricId' | 'defaultXMetricId' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled' | 'coCaptainIds' | 'isPublic' | 'isOpen' | 'isFeatured'>>
+  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'itemCategories' | 'defaultYMetricId' | 'defaultXMetricId' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled' | 'coCaptainIds' | 'isPublic' | 'isOpen' | 'isFeatured' | 'lastActivityAt'>>
 ): Promise<void> {
-  await updateDoc(doc(groupsCollection, groupId), {
-    ...updates,
-    updatedAt: Timestamp.fromDate(new Date()),
-  });
+  const updateData: Record<string, unknown> = { ...updates, updatedAt: Timestamp.fromDate(new Date()) };
+
+  // Convert lastActivityAt Date to Timestamp if provided
+  if (updates.lastActivityAt) {
+    updateData.lastActivityAt = Timestamp.fromDate(updates.lastActivityAt);
+  }
+
+  await updateDoc(doc(groupsCollection, groupId), updateData);
 }
 
 // Add a co-captain to a group
@@ -1195,7 +1199,8 @@ export async function claimObject(
   token: string,
   clerkId: string,
   name: string,
-  imageUrl: string | null
+  imageUrl: string | null,
+  email?: string
 ): Promise<{ success: boolean; objectId?: string; groupId?: string; error?: string }> {
   const claimToken = await getClaimTokenByToken(token);
 
@@ -1228,6 +1233,20 @@ export async function claimObject(
     claimedAt: Timestamp.fromDate(now),
     claimedBy: clerkId,
   });
+
+  // Add the claiming user as a member if they're not already
+  const existingMember = await getMemberByClerkId(claimToken.groupId, clerkId);
+  if (!existingMember) {
+    await addMember(
+      claimToken.groupId,
+      clerkId,
+      email || '',
+      name,
+      imageUrl,
+      'member',
+      'accepted'
+    );
+  }
 
   return {
     success: true,

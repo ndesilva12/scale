@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
-import { Plus, Users, ChevronRight, Bell, TrendingUp, Flame, Eye, Sparkles } from 'lucide-react';
+import { Plus, Users, ChevronRight, Bell, TrendingUp, Flame, Eye, Lock, LockOpen } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -28,8 +28,6 @@ export default function DashboardPage() {
   const [trendingGroups, setTrendingGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [seeding, setSeeding] = useState(false);
-  const [seedMessage, setSeedMessage] = useState<string | null>(null);
 
   // Load popular and trending groups (doesn't require login)
   useEffect(() => {
@@ -97,13 +95,12 @@ export default function DashboardPage() {
     // Add the captain as the first member
     await addMember(
       group.id,
+      user.id, // clerkId
       user.emailAddresses[0]?.emailAddress || '',
       user.fullName || user.firstName || 'Captain',
-      null, // placeholderImageUrl
-      user.id, // clerkId
-      'accepted', // status
-      user.imageUrl, // imageUrl (uses Google auth image if available)
-      true // isCaptain
+      user.imageUrl || null, // imageUrl
+      'captain', // role
+      'accepted' // status
     );
 
     setShowCreateModal(false);
@@ -118,50 +115,13 @@ export default function DashboardPage() {
         invitation.id,
         accept,
         user.id,
-        user.imageUrl
+        user.emailAddresses[0]?.emailAddress || '',
+        user.fullName || user.firstName || 'Member',
+        user.imageUrl || null
       );
       loadData();
     } catch (error) {
       console.error('Failed to respond to invitation:', error);
-    }
-  };
-
-  const handleSeedGroups = async () => {
-    if (!user) return;
-
-    setSeeding(true);
-    setSeedMessage(null);
-
-    try {
-      const response = await fetch('/api/seed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          captainEmail: user.emailAddresses[0]?.emailAddress,
-          captainClerkId: user.id,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSeedMessage(`Created ${data.groups?.length || 0} sample groups!`);
-        // Reload popular and trending groups
-        const [popular, trending] = await Promise.all([
-          getPopularGroups(6),
-          getTrendingGroups(6),
-        ]);
-        setPopularGroups(popular);
-        setTrendingGroups(trending);
-        loadData();
-      } else {
-        setSeedMessage(data.error || 'Failed to create sample groups');
-      }
-    } catch (error) {
-      console.error('Seed error:', error);
-      setSeedMessage('Failed to create sample groups');
-    } finally {
-      setSeeding(false);
     }
   };
 
@@ -235,31 +195,11 @@ export default function DashboardPage() {
               Manage your groups and view member ratings
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            {user && (
-              <Button
-                variant="outline"
-                onClick={handleSeedGroups}
-                loading={seeding}
-                className="hidden sm:inline-flex items-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                Seed Sample Groups
-              </Button>
-            )}
-            <Button variant="secondary" onClick={() => setShowCreateModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Group
-            </Button>
-          </div>
+          <Button variant="secondary" onClick={() => setShowCreateModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            New Group
+          </Button>
         </div>
-
-        {/* Seed message */}
-        {seedMessage && (
-          <div className={`mb-4 p-3 rounded-lg ${seedMessage.includes('Created') ? 'bg-lime-900/30 text-lime-300' : 'bg-red-900/30 text-red-300'}`}>
-            {seedMessage}
-          </div>
-        )}
 
         {/* Groups Grid */}
         {user && groups.length === 0 ? (
@@ -303,10 +243,18 @@ export default function DashboardPage() {
                               {group.description}
                             </p>
                           )}
-                          <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-2 text-sm">
                             <span className="flex items-center gap-1.5 px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-600 dark:text-gray-400">
                               <span className="font-medium">{group.metrics.length}</span>
                               <span>metrics</span>
+                            </span>
+                            <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                              group.isOpen
+                                ? 'bg-lime-900/30 text-lime-400'
+                                : 'bg-gray-700 text-gray-400'
+                            }`}>
+                              {group.isOpen ? <LockOpen className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                              {group.isOpen ? 'Open' : 'Closed'}
                             </span>
                           </div>
                         </div>
@@ -348,7 +296,7 @@ export default function DashboardPage() {
                               {group.description}
                             </p>
                           )}
-                          <div className="flex items-center gap-3 text-xs">
+                          <div className="flex items-center gap-2 text-xs flex-wrap">
                             <span className="flex items-center gap-1 text-gray-400">
                               <Eye className="w-3.5 h-3.5" />
                               {group.viewCount || 0}
@@ -356,6 +304,14 @@ export default function DashboardPage() {
                             <span className="flex items-center gap-1 text-gray-400">
                               <TrendingUp className="w-3.5 h-3.5" />
                               {group.ratingCount || 0} ratings
+                            </span>
+                            <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${
+                              group.isOpen
+                                ? 'bg-lime-900/30 text-lime-400'
+                                : 'bg-gray-700 text-gray-400'
+                            }`}>
+                              {group.isOpen ? <LockOpen className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
+                              {group.isOpen ? 'Open' : 'Closed'}
                             </span>
                           </div>
                         </div>
@@ -370,25 +326,7 @@ export default function DashboardPage() {
             <Card className="p-8 text-center border border-white/10 bg-white/5 backdrop-blur-sm">
               <Flame className="w-10 h-10 text-orange-500/50 mx-auto mb-3" />
               <p className="text-gray-400">No popular groups yet</p>
-              <p className="text-sm text-gray-500 mt-1 mb-4">Create a public group to get started</p>
-              {user && (
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleSeedGroups}
-                    loading={seeding}
-                    className="inline-flex items-center gap-2"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    Create Sample Groups
-                  </Button>
-                  {seedMessage && (
-                    <p className={`text-sm ${seedMessage.includes('Created') ? 'text-lime-400' : 'text-red-400'}`}>
-                      {seedMessage}
-                    </p>
-                  )}
-                </div>
-              )}
+              <p className="text-sm text-gray-500 mt-1">Create a public group to get started</p>
             </Card>
           )}
         </div>
@@ -421,7 +359,7 @@ export default function DashboardPage() {
                               {group.description}
                             </p>
                           )}
-                          <div className="flex items-center gap-3 text-xs">
+                          <div className="flex items-center gap-2 text-xs flex-wrap">
                             <span className="flex items-center gap-1 text-gray-400">
                               <Eye className="w-3.5 h-3.5" />
                               {group.viewCount || 0}
@@ -429,6 +367,14 @@ export default function DashboardPage() {
                             <span className="flex items-center gap-1 text-gray-400">
                               <TrendingUp className="w-3.5 h-3.5" />
                               {group.ratingCount || 0} ratings
+                            </span>
+                            <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${
+                              group.isOpen
+                                ? 'bg-lime-900/30 text-lime-400'
+                                : 'bg-gray-700 text-gray-400'
+                            }`}>
+                              {group.isOpen ? <LockOpen className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
+                              {group.isOpen ? 'Open' : 'Closed'}
                             </span>
                           </div>
                         </div>
