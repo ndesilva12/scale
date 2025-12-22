@@ -68,6 +68,7 @@ export async function createGroup(
     maxValue: m.maxValue ?? 100,
     prefix: m.prefix ?? '',
     suffix: m.suffix ?? '',
+    applicableCategories: m.applicableCategories ?? [],
   }));
 
   const group: Group = {
@@ -77,6 +78,7 @@ export async function createGroup(
     captainId,
     coCaptainIds: [],
     metrics: metricsWithIds,
+    itemCategories: [], // Default to no categories
     defaultYMetricId: metricsWithIds.length > 1 ? metricsWithIds[1].id : (metricsWithIds[0]?.id || null),
     defaultXMetricId: metricsWithIds[0]?.id || null,
     lockedYMetricId: null,
@@ -84,12 +86,18 @@ export async function createGroup(
     captainControlEnabled: false,
     isPublic: true, // Default to public
     isOpen: false, // Default to closed (only members can rate)
+    isFeatured: false, // Default to not featured
+    viewCount: 0,
+    ratingCount: 0,
+    shareCount: 0,
+    lastActivityAt: now,
     createdAt: now,
     updatedAt: now,
   };
 
   await setDoc(doc(groupsCollection, groupId), {
     ...group,
+    lastActivityAt: Timestamp.fromDate(now),
     createdAt: Timestamp.fromDate(now),
     updatedAt: Timestamp.fromDate(now),
   });
@@ -111,6 +119,7 @@ export async function getGroup(groupId: string): Promise<Group | null> {
     maxValue: m.maxValue ?? 100,
     prefix: m.prefix ?? '',
     suffix: m.suffix ?? '',
+    applicableCategories: m.applicableCategories ?? [],
   }));
 
   return {
@@ -119,13 +128,19 @@ export async function getGroup(groupId: string): Promise<Group | null> {
     captainId,
     coCaptainIds: data.coCaptainIds ?? [],
     metrics,
+    itemCategories: data.itemCategories ?? [],
     defaultYMetricId: data.defaultYMetricId ?? null,
     defaultXMetricId: data.defaultXMetricId ?? null,
     lockedYMetricId: data.lockedYMetricId ?? null,
     lockedXMetricId: data.lockedXMetricId ?? null,
     captainControlEnabled: data.captainControlEnabled ?? false,
-    isPublic: data.isPublic ?? true, // Default to public for backward compatibility
-    isOpen: data.isOpen ?? false, // Default to closed for backward compatibility
+    isPublic: data.isPublic ?? true,
+    isOpen: data.isOpen ?? false,
+    isFeatured: data.isFeatured ?? false,
+    viewCount: data.viewCount ?? 0,
+    ratingCount: data.ratingCount ?? 0,
+    shareCount: data.shareCount ?? 0,
+    lastActivityAt: convertTimestamp(data.lastActivityAt ?? data.updatedAt ?? data.createdAt),
     createdAt: convertTimestamp(data.createdAt),
     updatedAt: convertTimestamp(data.updatedAt),
   } as Group;
@@ -158,6 +173,7 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
       maxValue: m.maxValue ?? 100,
       prefix: m.prefix ?? '',
       suffix: m.suffix ?? '',
+      applicableCategories: m.applicableCategories ?? [],
     }));
 
     groupMap.set(docSnap.id, {
@@ -166,6 +182,7 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
       captainId,
       coCaptainIds: data.coCaptainIds ?? [],
       metrics,
+      itemCategories: data.itemCategories ?? [],
       defaultYMetricId: data.defaultYMetricId ?? null,
       defaultXMetricId: data.defaultXMetricId ?? null,
       lockedYMetricId: data.lockedYMetricId ?? null,
@@ -173,6 +190,11 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
       captainControlEnabled: data.captainControlEnabled ?? false,
       isPublic: data.isPublic ?? true,
       isOpen: data.isOpen ?? false,
+      isFeatured: data.isFeatured ?? false,
+      viewCount: data.viewCount ?? 0,
+      ratingCount: data.ratingCount ?? 0,
+      shareCount: data.shareCount ?? 0,
+      lastActivityAt: convertTimestamp(data.lastActivityAt ?? data.updatedAt ?? data.createdAt),
       createdAt: convertTimestamp(data.createdAt),
       updatedAt: convertTimestamp(data.updatedAt),
     } as Group);
@@ -202,7 +224,7 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
 
 export async function updateGroup(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'defaultYMetricId' | 'defaultXMetricId' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled' | 'coCaptainIds' | 'isPublic' | 'isOpen'>>
+  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'itemCategories' | 'defaultYMetricId' | 'defaultXMetricId' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled' | 'coCaptainIds' | 'isPublic' | 'isOpen' | 'isFeatured'>>
 ): Promise<void> {
   await updateDoc(doc(groupsCollection, groupId), {
     ...updates,
@@ -264,7 +286,8 @@ export async function addMember(
   isCaptain: boolean = false,
   description: string | null = null,
   itemType: ItemType = 'text',
-  linkUrl: string | null = null
+  linkUrl: string | null = null,
+  itemCategory: string | null = null
 ): Promise<GroupMember> {
   const memberId = uuidv4();
   const now = new Date();
@@ -286,6 +309,7 @@ export async function addMember(
     respondedAt: isCaptain ? now : null,
     itemType,
     linkUrl,
+    itemCategory,
     displayMode: 'user', // Default to showing user's actual profile
     customName: null,
     customImageUrl: null,
@@ -326,6 +350,7 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
       // Handle new item type fields with defaults
       itemType: data.itemType ?? 'text',
       linkUrl: data.linkUrl ?? null,
+      itemCategory: data.itemCategory ?? null,
       // Handle new display fields with defaults
       displayMode: data.displayMode ?? 'user',
       customName: data.customName ?? null,
@@ -352,6 +377,7 @@ export async function getMember(memberId: string): Promise<GroupMember | null> {
     respondedAt: data.respondedAt ? convertTimestamp(data.respondedAt) : null,
     itemType: data.itemType ?? 'text',
     linkUrl: data.linkUrl ?? null,
+    itemCategory: data.itemCategory ?? null,
     displayMode: data.displayMode ?? 'user',
     customName: data.customName ?? null,
     customImageUrl: data.customImageUrl ?? null,
@@ -701,6 +727,7 @@ export function subscribeToGroup(
       maxValue: m.maxValue ?? 100,
       prefix: m.prefix ?? '',
       suffix: m.suffix ?? '',
+      applicableCategories: m.applicableCategories ?? [],
     }));
 
     callback({
@@ -709,6 +736,7 @@ export function subscribeToGroup(
       captainId,
       coCaptainIds: data.coCaptainIds ?? [],
       metrics,
+      itemCategories: data.itemCategories ?? [],
       defaultYMetricId: data.defaultYMetricId ?? null,
       defaultXMetricId: data.defaultXMetricId ?? null,
       lockedYMetricId: data.lockedYMetricId ?? null,
@@ -716,6 +744,11 @@ export function subscribeToGroup(
       captainControlEnabled: data.captainControlEnabled ?? false,
       isPublic: data.isPublic ?? true,
       isOpen: data.isOpen ?? false,
+      isFeatured: data.isFeatured ?? false,
+      viewCount: data.viewCount ?? 0,
+      ratingCount: data.ratingCount ?? 0,
+      shareCount: data.shareCount ?? 0,
+      lastActivityAt: convertTimestamp(data.lastActivityAt ?? data.updatedAt ?? data.createdAt),
       createdAt: convertTimestamp(data.createdAt),
       updatedAt: convertTimestamp(data.updatedAt),
     } as Group);
@@ -744,6 +777,7 @@ export function subscribeToMembers(
         // Handle new item type fields with defaults
         itemType: data.itemType ?? 'text',
         linkUrl: data.linkUrl ?? null,
+        itemCategory: data.itemCategory ?? null,
         // Handle new display fields with defaults
         displayMode: data.displayMode ?? 'user',
         customName: data.customName ?? null,
@@ -754,6 +788,102 @@ export function subscribeToMembers(
     // Sort so captain is first
     callback(members.sort((a, b) => (b.isCaptain ? 1 : 0) - (a.isCaptain ? 1 : 0)));
   });
+}
+
+// ============ FEATURED GROUPS (POPULAR/TRENDING) ============
+
+export async function getFeaturedGroups(): Promise<Group[]> {
+  // Get groups that are public, featured, and have activity
+  const q = query(
+    groupsCollection,
+    where('isPublic', '==', true),
+    where('isFeatured', '==', true)
+  );
+  const docs = await getDocs(q);
+
+  const groups = docs.docs.map((docSnap) => {
+    const data = docSnap.data();
+    const captainId = data.captainId || data.creatorId;
+    const metrics = (data.metrics || []).map((m: Partial<Metric>) => ({
+      ...m,
+      minValue: m.minValue ?? 0,
+      maxValue: m.maxValue ?? 100,
+      prefix: m.prefix ?? '',
+      suffix: m.suffix ?? '',
+      applicableCategories: m.applicableCategories ?? [],
+    }));
+
+    return {
+      ...data,
+      id: docSnap.id,
+      captainId,
+      coCaptainIds: data.coCaptainIds ?? [],
+      metrics,
+      itemCategories: data.itemCategories ?? [],
+      defaultYMetricId: data.defaultYMetricId ?? null,
+      defaultXMetricId: data.defaultXMetricId ?? null,
+      lockedYMetricId: data.lockedYMetricId ?? null,
+      lockedXMetricId: data.lockedXMetricId ?? null,
+      captainControlEnabled: data.captainControlEnabled ?? false,
+      isPublic: data.isPublic ?? true,
+      isOpen: data.isOpen ?? false,
+      isFeatured: data.isFeatured ?? false,
+      viewCount: data.viewCount ?? 0,
+      ratingCount: data.ratingCount ?? 0,
+      shareCount: data.shareCount ?? 0,
+      lastActivityAt: convertTimestamp(data.lastActivityAt ?? data.updatedAt ?? data.createdAt),
+      createdAt: convertTimestamp(data.createdAt),
+      updatedAt: convertTimestamp(data.updatedAt),
+    } as Group;
+  });
+
+  return groups;
+}
+
+// Get popular groups (sorted by total engagement)
+export async function getPopularGroups(limit: number = 10): Promise<Group[]> {
+  const groups = await getFeaturedGroups();
+  // Sort by total engagement (views + ratings + shares)
+  return groups
+    .sort((a, b) => {
+      const aScore = a.viewCount + a.ratingCount * 2 + a.shareCount * 3;
+      const bScore = b.viewCount + b.ratingCount * 2 + b.shareCount * 3;
+      return bScore - aScore;
+    })
+    .slice(0, limit);
+}
+
+// Get trending groups (recent activity weighted)
+export async function getTrendingGroups(limit: number = 10): Promise<Group[]> {
+  const groups = await getFeaturedGroups();
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Sort by recency of activity combined with engagement
+  return groups
+    .filter((g) => g.lastActivityAt >= weekAgo)
+    .sort((a, b) => {
+      // Weight recent activity more heavily
+      const aRecency = a.lastActivityAt.getTime();
+      const bRecency = b.lastActivityAt.getTime();
+      const aScore = (a.viewCount + a.ratingCount * 2) * (aRecency / now.getTime());
+      const bScore = (b.viewCount + b.ratingCount * 2) * (bRecency / now.getTime());
+      return bScore - aScore;
+    })
+    .slice(0, limit);
+}
+
+// Increment view count for a group
+export async function incrementGroupViews(groupId: string): Promise<void> {
+  const groupRef = doc(groupsCollection, groupId);
+  const docSnap = await getDoc(groupRef);
+  if (docSnap.exists()) {
+    const currentViews = docSnap.data().viewCount ?? 0;
+    await updateDoc(groupRef, {
+      viewCount: currentViews + 1,
+      lastActivityAt: Timestamp.fromDate(new Date()),
+    });
+  }
 }
 
 export function subscribeToRatings(

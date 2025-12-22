@@ -16,15 +16,18 @@ interface AddMemberFormProps {
     description: string | null;
     itemType: ItemType;
     linkUrl: string | null;
+    itemCategory: string | null;
   }) => Promise<void>;
   onCancel: () => void;
   onUploadImage?: (file: File) => Promise<string>;
   existingEmails?: string[];
   groupId: string;
+  itemCategories?: string[];
 }
 
-export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, existingEmails = [], groupId }: AddMemberFormProps) {
+export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, existingEmails = [], groupId, itemCategories = [] }: AddMemberFormProps) {
   const [itemType, setItemType] = useState<ItemType | null>(null);
+  const [itemCategory, setItemCategory] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
@@ -130,6 +133,7 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
         description: description.trim() || null,
         itemType,
         linkUrl: itemType === 'link' ? linkUrl.trim() : null,
+        itemCategory,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add item');
@@ -196,6 +200,45 @@ export default function AddMemberForm({ onSubmit, onCancel, onUploadImage, exist
           {!itemType && 'Select the type of item you want to add.'}
         </p>
       </div>
+
+      {/* Category Selector - only show if categories are defined */}
+      {itemType && itemCategories.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-3">
+            Category
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setItemCategory(null)}
+              className={`px-4 py-2 rounded-xl border transition-all backdrop-blur-sm text-sm ${
+                itemCategory === null
+                  ? 'bg-lime-500/20 border-lime-500/50 text-lime-300'
+                  : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/20'
+              }`}
+            >
+              All Categories
+            </button>
+            {itemCategories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setItemCategory(category)}
+                className={`px-4 py-2 rounded-xl border transition-all backdrop-blur-sm text-sm ${
+                  itemCategory === category
+                    ? 'bg-lime-500/20 border-lime-500/50 text-lime-300'
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:border-white/20'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Select a category to determine which metrics apply to this item.
+          </p>
+        </div>
+      )}
 
       {/* Form fields - only show after type is selected */}
       {itemType && (

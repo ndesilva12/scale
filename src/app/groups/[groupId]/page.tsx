@@ -223,6 +223,7 @@ export default function GroupPage() {
     description: string | null;
     itemType: 'text' | 'link' | 'user';
     linkUrl: string | null;
+    itemCategory: string | null;
   }) => {
     if (!user || !group) return;
 
@@ -239,7 +240,8 @@ export default function GroupPage() {
         false, // isCaptain
         data.description,
         data.itemType,
-        data.linkUrl
+        data.linkUrl,
+        data.itemCategory
       );
 
       // Only create invitation if email is provided and item is a user type
@@ -315,6 +317,7 @@ export default function GroupPage() {
       maxValue: 100,
       prefix: '',
       suffix: '',
+      applicableCategories: [],
     };
     setEditingMetrics([...editingMetrics, newMetric]);
   };
@@ -977,6 +980,7 @@ export default function GroupPage() {
           onUploadImage={(file) => uploadMemberImage(groupId, file)}
           existingEmails={members.filter((m) => m.email).map((m) => m.email!.toLowerCase())}
           groupId={groupId}
+          itemCategories={group?.itemCategories || []}
         />
       </Modal>
 

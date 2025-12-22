@@ -22,6 +22,7 @@ export interface Group {
   captainId: string; // Clerk user ID of the group captain
   coCaptainIds: string[]; // Clerk user IDs of co-captains (have same permissions as captain)
   metrics: Metric[];
+  itemCategories: string[]; // Available categories for items (e.g., ["Player", "Team"] or ["Actor", "Movie"])
   defaultYMetricId: string | null; // Default Y-axis metric (can be changed by viewer)
   defaultXMetricId: string | null; // Default X-axis metric (can be changed by viewer)
   lockedYMetricId: string | null; // If set, this metric is locked as the Y-axis (cannot be changed)
@@ -29,6 +30,12 @@ export interface Group {
   captainControlEnabled: boolean; // If true, captain can always edit member display (name/image) even after claimed
   isPublic: boolean; // If true, anyone can view the group; if false, only members can view
   isOpen: boolean; // If true, anyone can rate; if false, only members can rate (and Rate tab is hidden)
+  isFeatured: boolean; // If true, can appear in Popular/Trending sections
+  // Popularity tracking
+  viewCount: number;
+  ratingCount: number;
+  shareCount: number;
+  lastActivityAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +49,7 @@ export interface Metric {
   maxValue: number; // Default 100, max 1,000,000
   prefix: MetricPrefix; // e.g., '$', '#'
   suffix: MetricSuffix; // e.g., '%', 'K', 'M'
+  applicableCategories: string[]; // Which item categories this metric applies to (empty = all items)
 }
 
 export type MemberDisplayMode = 'user' | 'custom';
@@ -66,6 +74,8 @@ export interface GroupMember {
   // Item type - determines what kind of item this is
   itemType: ItemType; // 'text' = simple item, 'link' = has URL, 'user' = claimable by a user
   linkUrl: string | null; // URL for link-type items
+  // Item category - determines which metrics apply to this item
+  itemCategory: string | null; // e.g., "Player", "Team", "Actor", "Movie" (null = all metrics apply)
   // Captain-controlled display settings
   displayMode: MemberDisplayMode; // 'user' = show actual profile, 'custom' = show captain-set values
   customName: string | null; // Captain-set display name (used when displayMode is 'custom')
@@ -177,7 +187,7 @@ export interface RatingForm {
 }
 
 // Helper function to create default metric values
-export const createDefaultMetric = (name: string, description: string, order: number): Omit<Metric, 'id'> => ({
+export const createDefaultMetric = (name: string, description: string, order: number, applicableCategories: string[] = []): Omit<Metric, 'id'> => ({
   name,
   description,
   order,
@@ -185,7 +195,22 @@ export const createDefaultMetric = (name: string, description: string, order: nu
   maxValue: 100,
   prefix: '',
   suffix: '',
+  applicableCategories,
 });
+
+// Helper to check if a metric applies to an item based on its category
+export const metricAppliesToItem = (metric: Metric, item: GroupMember): boolean => {
+  // If metric has no category restrictions, it applies to all items
+  if (!metric.applicableCategories || metric.applicableCategories.length === 0) {
+    return true;
+  }
+  // If item has no category, all metrics apply
+  if (!item.itemCategory) {
+    return true;
+  }
+  // Check if item's category is in the metric's applicable categories
+  return metric.applicableCategories.includes(item.itemCategory);
+};
 
 // Helper to format metric value with prefix/suffix
 export const formatMetricValue = (value: number, metric: Metric): string => {
