@@ -270,8 +270,8 @@ export default function MemberGraph({
       className="relative w-full h-full min-h-[300px] sm:min-h-[400px] bg-gray-900 rounded-none sm:rounded-xl border border-gray-700/50"
     >
       {/* Y-axis label - hidden on mobile, shown on larger screens */}
-      <div className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pr-1 md:pr-2">
-        <div className="transform -rotate-90 whitespace-nowrap">
+      <div className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pl-1 md:pl-2">
+        <div className="transform -rotate-90 origin-right whitespace-nowrap">
           <span className={`px-3 py-1.5 rounded-full text-sm md:text-base font-semibold border ${
             yMetricId
               ? 'bg-gray-800 text-gray-200 border-gray-600 shadow-sm'

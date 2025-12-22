@@ -228,12 +228,16 @@ export async function getUserGroups(clerkId: string): Promise<Group[]> {
 
 export async function updateGroup(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'itemCategories' | 'defaultYMetricId' | 'defaultXMetricId' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled' | 'coCaptainIds' | 'isPublic' | 'isOpen' | 'isFeatured'>>
+  updates: Partial<Pick<Group, 'name' | 'description' | 'metrics' | 'itemCategories' | 'defaultYMetricId' | 'defaultXMetricId' | 'lockedYMetricId' | 'lockedXMetricId' | 'captainControlEnabled' | 'coCaptainIds' | 'isPublic' | 'isOpen' | 'isFeatured' | 'lastActivityAt'>>
 ): Promise<void> {
-  await updateDoc(doc(groupsCollection, groupId), {
-    ...updates,
-    updatedAt: Timestamp.fromDate(new Date()),
-  });
+  const updateData: Record<string, unknown> = { ...updates, updatedAt: Timestamp.fromDate(new Date()) };
+
+  // Convert lastActivityAt Date to Timestamp if provided
+  if (updates.lastActivityAt) {
+    updateData.lastActivityAt = Timestamp.fromDate(updates.lastActivityAt);
+  }
+
+  await updateDoc(doc(groupsCollection, groupId), updateData);
 }
 
 // Add a co-captain to a group

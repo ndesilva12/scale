@@ -18,7 +18,7 @@ export default function SignInPage() {
           },
           elements: {
             rootBox: 'mx-auto',
-            card: 'bg-gray-800/90 backdrop-blur-xl border-2 border-white/20 shadow-2xl rounded-2xl p-8',
+            card: 'bg-gray-800 backdrop-blur-xl border border-gray-600 shadow-[0_0_50px_rgba(132,204,22,0.15)] rounded-2xl p-8',
             headerTitle: 'text-white text-2xl font-bold',
             headerSubtitle: 'text-gray-300 text-base',
             // Social buttons - dark with visible border

@@ -27,6 +27,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
+import Avatar from '@/components/ui/Avatar';
 import Select from '@/components/ui/Select';
 import MemberGraph from '@/components/graph/MemberGraph';
 import DataTable from '@/components/graph/DataTable';
@@ -58,6 +59,7 @@ import {
   removeCoCaptain,
   submitPendingObject,
   respondToPendingObject,
+  deleteGroup,
 } from '@/lib/firestore';
 import Input from '@/components/ui/Input';
 
@@ -100,7 +102,10 @@ export default function GroupPage() {
   const [editingIsPublic, setEditingIsPublic] = useState(true);
   const [editingIsOpen, setEditingIsOpen] = useState(false);
   const [savingGroupSettings, setSavingGroupSettings] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState(false);
   const [showMobileCaptainMenu, setShowMobileCaptainMenu] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [joiningGroup, setJoiningGroup] = useState(false);
 
   // Graph state
   const [xMetricId, setXMetricId] = useState<string>('');
@@ -371,10 +376,54 @@ export default function GroupPage() {
         captainControlEnabled: editingCaptainControlEnabled,
         isPublic: editingIsPublic,
         isOpen: editingIsOpen,
+        lastActivityAt: new Date(), // Refresh activity timestamp for trending
       });
       setShowGroupSettingsModal(false);
     } finally {
       setSavingGroupSettings(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!group || !isOriginalCaptain) return;
+
+    const confirmed = confirm(
+      `Are you sure you want to delete "${group.name}"? This will permanently delete all members, objects, ratings, and data associated with this group. This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingGroup(true);
+    try {
+      await deleteGroup(groupId);
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Failed to delete group:', error);
+      alert('Failed to delete group. Please try again.');
+    } finally {
+      setDeletingGroup(false);
+    }
+  };
+
+  const handleJoinGroup = async () => {
+    if (!user || !group) return;
+
+    setJoiningGroup(true);
+    try {
+      await addMember(
+        groupId,
+        user.id,
+        user.emailAddresses[0]?.emailAddress || '',
+        user.fullName || user.firstName || 'Member',
+        user.imageUrl || null,
+        'member',
+        'accepted' // Auto-accept for open groups
+      );
+    } catch (error) {
+      console.error('Failed to join group:', error);
+      alert('Failed to join group. Please try again.');
+    } finally {
+      setJoiningGroup(false);
     }
   };
 
@@ -527,14 +576,38 @@ export default function GroupPage() {
       <main className={`flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-2 sm:py-8 ${viewMode === 'graph' ? 'flex flex-col overflow-hidden' : ''}`}>
         {/* Group title and description - shown above all controls */}
         <div className="mb-3 sm:mb-4">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white truncate">
-            {group.name}
-          </h1>
-          {group.description && (
-            <p className="text-sm sm:text-base text-gray-400 mt-1 line-clamp-2">
-              {group.description}
-            </p>
-          )}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white truncate">
+                {group.name}
+              </h1>
+              {group.description && (
+                <p className="text-sm sm:text-base text-gray-400 mt-1 line-clamp-2">
+                  {group.description}
+                </p>
+              )}
+              {/* Member count - clickable to show member list */}
+              <button
+                onClick={() => setShowMembersModal(true)}
+                className="mt-2 flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                <Users className="w-4 h-4" />
+                <span>{members.filter(m => m.status === 'accepted').length} members</span>
+              </button>
+            </div>
+            {/* Join button for non-members on open groups */}
+            {group.isOpen && user && !isMember && !isCaptain && (
+              <Button
+                variant="secondary"
+                onClick={handleJoinGroup}
+                loading={joiningGroup}
+                className="flex-shrink-0"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Join Group
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Mobile header - back + axis selectors + menu */}
@@ -957,6 +1030,7 @@ export default function GroupPage() {
               existingRatings={ratings}
               onSubmitRating={handleSubmitRating}
               isCaptain={isCaptain}
+              isGroupOpen={group.isOpen}
             />
           </div>
         )}
@@ -1421,6 +1495,25 @@ export default function GroupPage() {
               </button>
             </div>
           </div>
+
+          {/* Danger Zone - Only for original captain */}
+          {isOriginalCaptain && (
+            <div className="mt-6 p-4 border border-red-500/30 bg-red-500/10 rounded-lg">
+              <h3 className="text-sm font-medium text-red-400 mb-2">Danger Zone</h3>
+              <p className="text-xs text-gray-400 mb-3">
+                Permanently delete this group and all its data. This cannot be undone.
+              </p>
+              <Button
+                variant="outline"
+                onClick={handleDeleteGroup}
+                loading={deletingGroup}
+                className="w-full border-red-500/50 text-red-400 hover:bg-red-500/20"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Group
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -1429,6 +1522,53 @@ export default function GroupPage() {
           </Button>
           <Button variant="secondary" onClick={handleSaveGroupSettings} loading={savingGroupSettings} className="flex-1">
             Save Settings
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Members Modal */}
+      <Modal
+        isOpen={showMembersModal}
+        onClose={() => setShowMembersModal(false)}
+        title="Group Members"
+      >
+        <div className="space-y-3 max-h-96 overflow-y-auto">
+          {members.filter(m => m.status === 'accepted').length === 0 ? (
+            <p className="text-gray-400 text-center py-4">No members yet</p>
+          ) : (
+            members
+              .filter(m => m.status === 'accepted')
+              .map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg"
+                >
+                  <Avatar
+                    src={member.imageUrl}
+                    alt={member.name}
+                    size="md"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-white truncate">{member.name}</p>
+                    <p className="text-sm text-gray-400 capitalize">{member.role}</p>
+                  </div>
+                  {member.role === 'captain' && (
+                    <span className="px-2 py-0.5 bg-lime-900/50 text-lime-400 text-xs rounded-full">
+                      Captain
+                    </span>
+                  )}
+                  {group?.coCaptainIds?.includes(member.clerkId || '') && member.role !== 'captain' && (
+                    <span className="px-2 py-0.5 bg-blue-900/50 text-blue-400 text-xs rounded-full">
+                      Co-Captain
+                    </span>
+                  )}
+                </div>
+              ))
+          )}
+        </div>
+        <div className="mt-4 pt-4 border-t border-gray-700">
+          <Button variant="outline" onClick={() => setShowMembersModal(false)} className="w-full">
+            Close
           </Button>
         </div>
       </Modal>

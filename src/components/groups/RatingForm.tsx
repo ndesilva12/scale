@@ -14,6 +14,7 @@ interface RatingFormProps {
   existingRatings: Rating[];
   onSubmitRating: (metricId: string, targetObjectId: string, value: number) => Promise<void>;
   isCaptain?: boolean;
+  isGroupOpen?: boolean;
 }
 
 export default function RatingForm({
@@ -24,6 +25,7 @@ export default function RatingForm({
   existingRatings,
   onSubmitRating,
   isCaptain = false,
+  isGroupOpen = false,
 }: RatingFormProps) {
   const [selectedObject, setSelectedObject] = useState<GroupObject | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
@@ -115,14 +117,16 @@ export default function RatingForm({
     }
   };
 
-  // Check if current user can rate (must be an accepted member)
-  const canRate = currentMember?.status === 'accepted';
+  // Check if current user can rate (accepted member OR open group with logged in user)
+  const canRate = currentMember?.status === 'accepted' || (isGroupOpen && !!currentUserId);
 
   if (!canRate) {
     return (
       <div className="p-6 text-center bg-gray-700 rounded-lg">
         <p className="text-gray-400">
-          You must be an accepted member of this group to submit ratings.
+          {isGroupOpen
+            ? 'You must be signed in to submit ratings.'
+            : 'You must be an accepted member of this group to submit ratings.'}
         </p>
       </div>
     );
