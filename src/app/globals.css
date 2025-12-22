@@ -82,3 +82,121 @@ body {
 .animate-slide-up {
   animation: slideUp 0.3s ease-out;
 }
+
+/* Clerk Sign-In/Sign-Up Dark Theme Overrides */
+.cl-card {
+  background-color: #1f2937 !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.cl-socialButtonsBlockButton {
+  background-color: #374151 !important;
+  border: 2px solid #6b7280 !important;
+  color: white !important;
+}
+
+.cl-socialButtonsBlockButton:hover {
+  background-color: #4b5563 !important;
+  border-color: #9ca3af !important;
+}
+
+.cl-socialButtonsBlockButtonText {
+  color: white !important;
+}
+
+.cl-formButtonPrimary {
+  background-color: #374151 !important;
+  border: 2px solid #6b7280 !important;
+  color: white !important;
+}
+
+.cl-formButtonPrimary:hover {
+  background-color: #4b5563 !important;
+  border-color: #9ca3af !important;
+}
+
+.cl-formFieldInput {
+  background-color: #374151 !important;
+  border: 2px solid #6b7280 !important;
+  color: white !important;
+}
+
+.cl-formFieldInput:focus {
+  border-color: #84cc16 !important;
+}
+
+.cl-formFieldLabel {
+  color: #d1d5db !important;
+}
+
+.cl-headerTitle,
+.cl-headerSubtitle {
+  color: white !important;
+}
+
+.cl-dividerLine {
+  background-color: #4b5563 !important;
+}
+
+.cl-dividerText {
+  color: #9ca3af !important;
+}
+
+.cl-footerActionLink {
+  color: #84cc16 !important;
+}
+
+.cl-footerActionText {
+  color: #9ca3af !important;
+}
+
+.cl-alert {
+  background-color: #374151 !important;
+  border-color: #4b5563 !important;
+  color: #d1d5db !important;
+}
+
+.cl-alertText {
+  color: #d1d5db !important;
+}
+
+.cl-badge {
+  background-color: #374151 !important;
+  border-color: #4b5563 !important;
+  color: #d1d5db !important;
+}
+
+/* Clerk User Button Popover Dark Theme */
+.cl-userButtonPopoverCard {
+  background-color: #111827 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.cl-userButtonPopoverActionButton {
+  color: #d1d5db !important;
+}
+
+.cl-userButtonPopoverActionButton:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+}
+
+.cl-userButtonPopoverActionButtonText {
+  color: #d1d5db !important;
+}
+
+.cl-userButtonPopoverActionButtonIcon {
+  color: #9ca3af !important;
+}
+
+.cl-userPreviewMainIdentifier {
+  color: white !important;
+}
+
+.cl-userPreviewSecondaryIdentifier {
+  color: #9ca3af !important;
+}
+
+.cl-userButtonPopoverFooter {
+  display: none !important;
+}

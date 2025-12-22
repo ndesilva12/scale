@@ -1137,16 +1137,6 @@ export default function GroupPage() {
                       <p className="text-xs text-gray-400 truncate mt-0.5">{metric.description}</p>
                     )}
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteMetric(index);
-                    }}
-                    className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors flex-shrink-0"
-                    title="Delete metric"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
                   {isExpanded ? (
                     <ChevronUp className="w-5 h-5 text-gray-400 flex-shrink-0" />
                   ) : (
@@ -1228,6 +1218,15 @@ export default function GroupPage() {
                         className="w-full px-3 py-2.5 text-white bg-gray-900 border border-white/20 rounded-xl focus:border-lime-500"
                       />
                     </div>
+
+                    {/* Delete button - inside expanded content */}
+                    <button
+                      onClick={() => handleDeleteMetric(index)}
+                      className="w-full py-2 flex items-center justify-center gap-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors border border-red-500/20"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete Metric
+                    </button>
                   </div>
                 )}
               </div>
