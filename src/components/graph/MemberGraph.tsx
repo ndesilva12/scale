@@ -269,48 +269,6 @@ export default function MemberGraph({
       ref={containerRef}
       className="relative w-full h-full min-h-[300px] sm:min-h-[400px] bg-gray-900 rounded-none sm:rounded-xl border border-gray-700/50"
     >
-      {/* Y-axis label - hidden on mobile, shown on larger screens - positioned at 100 (top) */}
-      <div className="hidden md:block absolute left-0 top-2 -translate-x-full pl-1 md:pl-2">
-        <div className="transform -rotate-90 origin-right whitespace-nowrap">
-          <span className={`px-3 py-1.5 rounded-full text-sm md:text-base font-semibold border ${
-            yMetricId
-              ? 'bg-gray-800 text-gray-200 border-gray-600 shadow-sm'
-              : 'bg-gray-800 text-gray-500 border-gray-700'
-          }`}>
-            {yMetric?.name || (yMetricId ? 'Y Axis' : 'None')}
-          </span>
-        </div>
-      </div>
-
-      {/* X-axis label - hidden on mobile, shown on larger screens - positioned at 100 (right) */}
-      <div className="hidden md:block absolute bottom-0 right-2 translate-y-full pt-1 md:pt-2">
-        <span className={`px-3 py-1.5 rounded-full text-sm md:text-base font-semibold border ${
-          xMetricId
-            ? 'bg-gray-800 text-gray-200 border-gray-600 shadow-sm'
-            : 'bg-gray-800 text-gray-500 border-gray-700'
-        }`}>
-          {xMetric?.name || (xMetricId ? 'X Axis' : 'None')}
-        </span>
-      </div>
-
-      {/* Mobile Y-axis label - positioned at 100 (top) */}
-      {yMetricId && (
-        <div className="md:hidden absolute left-1 top-2 z-10">
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-800/90 text-gray-300 border border-gray-600 shadow-sm whitespace-nowrap">
-            {yMetric?.name || 'Y'}
-          </span>
-        </div>
-      )}
-
-      {/* Mobile X-axis label - positioned at 100 (right) */}
-      {xMetricId && (
-        <div className="md:hidden absolute bottom-3 right-2 z-10">
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-800/90 text-gray-300 border border-gray-600 shadow-sm whitespace-nowrap">
-            {xMetric?.name || 'X'}
-          </span>
-        </div>
-      )}
-
       {/* Grid lines */}
       <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
         {/* Vertical grid lines */}
@@ -341,18 +299,22 @@ export default function MemberGraph({
         ))}
       </svg>
 
-      {/* Y-axis scale - numbers only, properly positioned */}
-      <div className="absolute left-1 md:left-2 top-0 bottom-0 flex flex-col justify-between py-2 text-xs text-gray-500 dark:text-gray-400">
+      {/* Y-axis scale - metric name at top, numbers below */}
+      <div className="absolute left-1 md:left-2 top-0 bottom-0 flex flex-col justify-between py-2 text-xs text-gray-400">
         {yMetricId && (() => {
           const min = yMetric?.minValue ?? 0;
           const max = yMetric?.maxValue ?? 100;
           const range = max - min;
           const prefix = yMetric?.prefix ?? '';
           const suffix = yMetric?.suffix ?? '';
-          // Show fewer values on mobile (top, middle, bottom)
-          return [100, 50, 0].map((pct) => (
-            <span key={pct} className="md:hidden">{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
-          ));
+          // Mobile: metric name, 50, 0
+          return (
+            <>
+              <span className="md:hidden text-gray-300 font-medium text-[10px]">{yMetric?.name}</span>
+              <span className="md:hidden">{prefix}{Math.round(min + (range * 50 / 100))}{suffix}</span>
+              <span className="md:hidden">{prefix}{Math.round(min)}{suffix}</span>
+            </>
+          );
         })()}
         {yMetricId && (() => {
           const min = yMetric?.minValue ?? 0;
@@ -360,10 +322,16 @@ export default function MemberGraph({
           const range = max - min;
           const prefix = yMetric?.prefix ?? '';
           const suffix = yMetric?.suffix ?? '';
-          // Show all values on desktop
-          return [100, 75, 50, 25, 0].map((pct) => (
-            <span key={pct} className="hidden md:block">{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
-          ));
+          // Desktop: metric name, 75, 50, 25, 0
+          return (
+            <>
+              <span className="hidden md:block text-gray-300 font-medium">{yMetric?.name}</span>
+              <span className="hidden md:block">{prefix}{Math.round(min + (range * 75 / 100))}{suffix}</span>
+              <span className="hidden md:block">{prefix}{Math.round(min + (range * 50 / 100))}{suffix}</span>
+              <span className="hidden md:block">{prefix}{Math.round(min + (range * 25 / 100))}{suffix}</span>
+              <span className="hidden md:block">{prefix}{Math.round(min)}{suffix}</span>
+            </>
+          );
         })()}
         {/* Show dashes when no Y metric */}
         {!yMetricId && (
@@ -380,18 +348,22 @@ export default function MemberGraph({
         )}
       </div>
 
-      {/* X-axis scale - numbers only, properly positioned */}
-      <div className="absolute left-0 right-0 bottom-0.5 md:bottom-2 flex justify-between items-center px-2 text-xs text-gray-500 dark:text-gray-400">
+      {/* X-axis scale - metric name at right, numbers before */}
+      <div className="absolute left-0 right-0 bottom-0.5 md:bottom-2 flex justify-between items-center px-2 text-xs text-gray-400">
         {xMetricId && (() => {
           const min = xMetric?.minValue ?? 0;
           const max = xMetric?.maxValue ?? 100;
           const range = max - min;
           const prefix = xMetric?.prefix ?? '';
           const suffix = xMetric?.suffix ?? '';
-          // Show fewer values on mobile
-          return [0, 50, 100].map((pct) => (
-            <span key={pct} className="md:hidden">{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
-          ));
+          // Mobile: 0, 50, metric name
+          return (
+            <>
+              <span className="md:hidden">{prefix}{Math.round(min)}{suffix}</span>
+              <span className="md:hidden">{prefix}{Math.round(min + (range * 50 / 100))}{suffix}</span>
+              <span className="md:hidden text-gray-300 font-medium text-[10px]">{xMetric?.name}</span>
+            </>
+          );
         })()}
         {xMetricId && (() => {
           const min = xMetric?.minValue ?? 0;
@@ -399,10 +371,16 @@ export default function MemberGraph({
           const range = max - min;
           const prefix = xMetric?.prefix ?? '';
           const suffix = xMetric?.suffix ?? '';
-          // Show all values on desktop
-          return [0, 25, 50, 75, 100].map((pct) => (
-            <span key={pct} className="hidden md:block">{prefix}{Math.round(min + (range * pct / 100))}{suffix}</span>
-          ));
+          // Desktop: 0, 25, 50, 75, metric name
+          return (
+            <>
+              <span className="hidden md:block">{prefix}{Math.round(min)}{suffix}</span>
+              <span className="hidden md:block">{prefix}{Math.round(min + (range * 25 / 100))}{suffix}</span>
+              <span className="hidden md:block">{prefix}{Math.round(min + (range * 50 / 100))}{suffix}</span>
+              <span className="hidden md:block">{prefix}{Math.round(min + (range * 75 / 100))}{suffix}</span>
+              <span className="hidden md:block text-gray-300 font-medium">{xMetric?.name}</span>
+            </>
+          );
         })()}
         {/* Show dashes when no X metric */}
         {!xMetricId && (

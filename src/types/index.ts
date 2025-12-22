@@ -79,8 +79,9 @@ export interface GroupObject {
   updatedAt: Date;
 }
 
-// ============ MEMBERS (users who belong to a group) ============
-export type MemberRole = 'captain' | 'co-captain' | 'member';
+// ============ GROUP FOLLOWERS (users who follow a group) ============
+// Captain/co-captain manage the group; followers have it in their "My Groups"
+export type MemberRole = 'captain' | 'co-captain' | 'follower';
 export type MemberStatus = 'pending' | 'accepted' | 'declined';
 
 export interface GroupMember {

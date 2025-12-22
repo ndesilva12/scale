@@ -65,10 +65,10 @@ export default function JoinGroupPage() {
         groupId,
         user.id, // clerkId
         user.emailAddresses[0]?.emailAddress || '',
-        user.fullName || user.firstName || 'New Member',
+        user.fullName || user.firstName || 'New Follower',
         user.imageUrl || null, // imageUrl
-        'member', // role
-        'pending' // status - requires captain approval
+        'follower', // role
+        'accepted' // status - followers are auto-accepted
       );
 
       // Create an invitation record for tracking

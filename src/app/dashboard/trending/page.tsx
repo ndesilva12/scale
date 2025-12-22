@@ -31,7 +31,7 @@ export default function TrendingGroupsPage() {
       <div className="min-h-screen flex flex-col bg-gray-900">
         <Header />
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-4 border-yellow-500 border-t-transparent rounded-full" />
+          <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
         </div>
       </div>
     );
@@ -47,7 +47,7 @@ export default function TrendingGroupsPage() {
             <ArrowLeft className="w-5 h-5 text-gray-400" />
           </Link>
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-yellow-500" />
+            <TrendingUp className="w-5 h-5 text-emerald-500" />
             <h1 className="text-lg sm:text-xl font-bold text-white">Trending Groups</h1>
           </div>
         </div>
@@ -58,7 +58,7 @@ export default function TrendingGroupsPage() {
               <Link key={group.id} href={`/groups/${group.id}`}>
                 {/* Mobile: Compact row */}
                 <div className="sm:hidden flex items-center gap-3 p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-colors">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-yellow-600 to-lime-600 flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-600 to-sky-500 flex items-center justify-center flex-shrink-0">
                     <TrendingUp className="w-4 h-4 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -72,7 +72,7 @@ export default function TrendingGroupsPage() {
                 </div>
                 {/* Desktop: Card */}
                 <Card className="hidden sm:block overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full border border-white/10 bg-white/5">
-                  <div className="h-1 bg-gradient-to-r from-yellow-600 to-lime-600" />
+                  <div className="h-1 bg-gradient-to-r from-emerald-600 to-sky-500" />
                   <div className="p-3">
                     <h3 className="font-bold text-white text-sm truncate mb-1">{group.name}</h3>
                     {group.description && (

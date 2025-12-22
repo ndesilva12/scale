@@ -13,15 +13,14 @@ import {
   BarChart3,
   Table,
   SlidersHorizontal,
-  Users,
   AlertCircle,
   Settings,
-  Anchor,
   Settings2,
   Lock,
   MoreVertical,
   Trash2,
   GripVertical,
+  Heart,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -32,7 +31,6 @@ import Select from '@/components/ui/Select';
 import MemberGraph from '@/components/graph/MemberGraph';
 import DataTable from '@/components/graph/DataTable';
 import AddMemberForm from '@/components/groups/AddMemberForm';
-import BulkAddForm from '@/components/groups/BulkAddForm';
 import RatingForm from '@/components/groups/RatingForm';
 import { Group, GroupMember, GroupObject, Rating, AggregatedScore, ClaimRequest, Metric, MetricPrefix, MetricSuffix, PendingObject, ObjectType } from '@/types';
 import {
@@ -45,22 +43,21 @@ import {
   addObject,
   removeObject,
   updateObject,
-  createInvitation,
   submitRating,
   calculateAggregatedScores,
   getGroupClaimRequests,
   respondToClaimRequest,
   updateObjectVisibility,
   uploadObjectImage,
-  updateMember,
   updateGroup,
-  removeMember,
   createClaimToken,
   addCoCaptain,
   removeCoCaptain,
   submitPendingObject,
   respondToPendingObject,
   deleteGroup,
+  followGroup,
+  unfollowGroup,
 } from '@/lib/firestore';
 import Input from '@/components/ui/Input';
 
@@ -87,7 +84,6 @@ export default function GroupPage() {
     (initialTab === 'table' || initialTab === 'rate' || initialTab === 'graph') ? initialTab : 'graph'
   );
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [showBulkAddModal, setShowBulkAddModal] = useState(false);
   const [showClaimRequestsModal, setShowClaimRequestsModal] = useState(false);
   const [showPendingItemsModal, setShowPendingItemsModal] = useState(false);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
@@ -106,8 +102,7 @@ export default function GroupPage() {
   const [savingGroupSettings, setSavingGroupSettings] = useState(false);
   const [deletingGroup, setDeletingGroup] = useState(false);
   const [showMobileCaptainMenu, setShowMobileCaptainMenu] = useState(false);
-  const [showMembersModal, setShowMembersModal] = useState(false);
-  const [joiningGroup, setJoiningGroup] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Graph state
   const [xMetricId, setXMetricId] = useState<string>('');
@@ -142,11 +137,14 @@ export default function GroupPage() {
   const isCaptain = group?.captainId === user?.id || (group?.coCaptainIds?.includes(user?.id || '') ?? false);
   const isOriginalCaptain = group?.captainId === user?.id; // Only original captain can promote co-captains
   const currentMember = members.find((m) => m.clerkId === user?.id);
-  const isMember = currentMember?.status === 'accepted';
-  // canRate: if group is open, any logged in user can rate; if closed, only members can rate
-  const canRate = group?.isOpen ? !!user : isMember;
-  // Check if user can view the group (public groups can be viewed by anyone, private only by members)
-  const canViewGroup = group?.isPublic || isMember || isCaptain;
+
+  // Check if user is following the group
+  const isFollowing = currentMember?.role === 'follower' && currentMember?.status === 'accepted';
+
+  // canRate: if group is open, any logged in user can rate; if closed, only captain/co-captains can rate
+  const canRate = group?.isOpen ? !!user : isCaptain;
+  // Check if user can view the group (public groups can be viewed by anyone, private requires link access)
+  const canViewGroup = group?.isPublic || isCaptain;
 
   // Subscribe to real-time updates
   useEffect(() => {
@@ -302,7 +300,7 @@ export default function GroupPage() {
       );
     }
 
-    setShowBulkAddModal(false);
+    setShowAddMemberModal(false);
   };
 
   const handleSubmitRating = async (metricId: string, targetObjectId: string, value: number) => {
@@ -433,25 +431,37 @@ export default function GroupPage() {
     }
   };
 
-  const handleJoinGroup = async () => {
+  // Follow a public group (adds to My Groups)
+  const handleFollowGroup = async () => {
     if (!user || !group) return;
-
-    setJoiningGroup(true);
+    setActionLoading(true);
     try {
-      await addMember(
+      await followGroup(
         groupId,
         user.id,
         user.emailAddresses[0]?.emailAddress || '',
-        user.fullName || user.firstName || 'Member',
-        user.imageUrl || null,
-        'member',
-        'accepted' // Auto-accept for open groups
+        user.fullName || user.firstName || 'User',
+        user.imageUrl || null
       );
     } catch (error) {
-      console.error('Failed to join group:', error);
-      alert('Failed to join group. Please try again.');
+      console.error('Failed to follow group:', error);
+      alert('Failed to follow group. Please try again.');
     } finally {
-      setJoiningGroup(false);
+      setActionLoading(false);
+    }
+  };
+
+  // Unfollow a group
+  const handleUnfollowGroup = async () => {
+    if (!user || !group) return;
+    setActionLoading(true);
+    try {
+      await unfollowGroup(groupId, user.id);
+    } catch (error) {
+      console.error('Failed to unfollow group:', error);
+      alert('Failed to unfollow group. Please try again.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -628,26 +638,33 @@ export default function GroupPage() {
                 </p>
               )}
             </div>
-            {/* Right side: members count + join button */}
+            {/* Right side: Follow/Unfollow button */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              {/* Member count - clickable to show member list */}
-              <button
-                onClick={() => setShowMembersModal(true)}
-                className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
-              >
-                <Users className="w-4 h-4" />
-                <span>{members.filter(m => m.status === 'accepted').length}</span>
-              </button>
-              {/* Join button for non-members on open groups */}
-              {group.isOpen && user && !isMember && !isCaptain && (
-                <Button
-                  variant="secondary"
-                  onClick={handleJoinGroup}
-                  loading={joiningGroup}
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Join
-                </Button>
+              {/* Follow/Unfollow button for non-captains */}
+              {user && !isCaptain && (
+                <>
+                  {isFollowing ? (
+                    <Button
+                      variant="outline"
+                      onClick={handleUnfollowGroup}
+                      loading={actionLoading}
+                      className="text-sm"
+                    >
+                      <Heart className="w-4 h-4 mr-1.5 fill-current" />
+                      Following
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={handleFollowGroup}
+                      loading={actionLoading}
+                      className="text-sm"
+                    >
+                      <Heart className="w-4 h-4 mr-1.5" />
+                      Follow
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -743,7 +760,7 @@ export default function GroupPage() {
             </div>
           )}
 
-          {/* Mobile menu (three-dot) - shown for all members */}
+          {/* Mobile menu (three-dot) - shown for those who can rate */}
           {canRate && (
             <div className="relative">
               <button
@@ -770,7 +787,7 @@ export default function GroupPage() {
                             }}
                             className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
                           >
-                            <Users className="w-4 h-4" />
+                            <UserPlus className="w-4 h-4" />
                             Claims
                             <span className="ml-auto bg-lime-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                               {claimRequests.length}
@@ -786,7 +803,7 @@ export default function GroupPage() {
                             className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
                           >
                             <UserPlus className="w-4 h-4" />
-                            Pending
+                            Pending Items
                             <span className="ml-auto bg-lime-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                               {pendingItems.length}
                             </span>
@@ -814,7 +831,7 @@ export default function GroupPage() {
                         </button>
                       </>
                     )}
-                    {/* Add button - available to all members */}
+                    {/* Add button - available to all who can rate */}
                     <button
                       onClick={() => {
                         setShowAddMemberModal(true);
@@ -825,19 +842,6 @@ export default function GroupPage() {
                       <UserPlus className="w-4 h-4" />
                       {isCaptain ? 'Add Item' : 'Suggest Item'}
                     </button>
-                    {/* Bulk Add - captain only */}
-                    {isCaptain && (
-                      <button
-                        onClick={() => {
-                          setShowBulkAddModal(true);
-                          setShowMobileCaptainMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        Bulk Add
-                      </button>
-                    )}
                   </div>
                 </div>
               )}
@@ -947,7 +951,7 @@ export default function GroupPage() {
                     onClick={() => setShowClaimRequestsModal(true)}
                     className="relative"
                   >
-                    <Users className="w-4 h-4 mr-2" />
+                    <UserPlus className="w-4 h-4 mr-2" />
                     Claims
                     <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-500 text-white text-xs rounded-full flex items-center justify-center">
                       {claimRequests.length}
@@ -961,7 +965,7 @@ export default function GroupPage() {
                     className="relative"
                   >
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Pending
+                    Pending Items
                     <span className="absolute -top-1 -right-1 w-5 h-5 bg-lime-500 text-white text-xs rounded-full flex items-center justify-center">
                       {pendingItems.length}
                     </span>
@@ -977,20 +981,12 @@ export default function GroupPage() {
                 </Button>
               </>
             )}
-            {/* Add/Suggest button - available to all members */}
+            {/* Add/Suggest button - available to all who can rate */}
             {canRate && (
-              <div className="flex gap-1.5">
-                <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  {isCaptain ? 'Add' : 'Suggest'}
-                </Button>
-                {isCaptain && (
-                  <Button variant="outline" onClick={() => setShowBulkAddModal(true)} title="Bulk Add">
-                    <UserPlus className="w-4 h-4" />
-                    <span className="ml-1 text-xs">+</span>
-                  </Button>
-                )}
-              </div>
+              <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                {isCaptain ? 'Add' : 'Suggest'}
+              </Button>
             )}
           </div>
         </div>
@@ -1102,7 +1098,7 @@ export default function GroupPage() {
         {/* Empty state for no items */}
         {objects.length === 0 && (
           <Card className="p-12 text-center">
-            <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <UserPlus className="w-12 h-12 mx-auto mb-4 text-gray-400" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               No items yet
             </h3>
@@ -1129,22 +1125,11 @@ export default function GroupPage() {
       >
         <AddMemberForm
           onSubmit={handleAddObject}
+          onBulkSubmit={isCaptain ? handleBulkAddObjects : undefined}
           onCancel={() => setShowAddMemberModal(false)}
           onUploadImage={(file) => uploadObjectImage(groupId, file)}
           existingEmails={members.filter((m) => m.email).map((m) => m.email!.toLowerCase())}
           groupId={groupId}
-        />
-      </Modal>
-
-      {/* Bulk Add Modal */}
-      <Modal
-        isOpen={showBulkAddModal}
-        onClose={() => setShowBulkAddModal(false)}
-        title="Bulk Add Items"
-      >
-        <BulkAddForm
-          onSubmit={handleBulkAddObjects}
-          onCancel={() => setShowBulkAddModal(false)}
         />
       </Modal>
 
@@ -1492,7 +1477,7 @@ export default function GroupPage() {
                   Public Group
                 </label>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {editingIsPublic ? 'Anyone can view this group' : 'Only members can view this group'}
+                  {editingIsPublic ? 'Anyone can view this group' : 'Only those with the link can view this group'}
                 </p>
               </div>
               <button
@@ -1521,7 +1506,7 @@ export default function GroupPage() {
                   Open Ratings
                 </label>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {editingIsOpen ? 'Anyone can rate items' : 'Only members can rate items'}
+                  {editingIsOpen ? 'Anyone can rate items' : 'Only captain/co-captains can rate items'}
                 </p>
               </div>
               <button
@@ -1597,53 +1582,6 @@ export default function GroupPage() {
           </Button>
           <Button variant="secondary" onClick={handleSaveGroupSettings} loading={savingGroupSettings} className="flex-1">
             Save Settings
-          </Button>
-        </div>
-      </Modal>
-
-      {/* Members Modal */}
-      <Modal
-        isOpen={showMembersModal}
-        onClose={() => setShowMembersModal(false)}
-        title="Group Members"
-      >
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {members.filter(m => m.status === 'accepted').length === 0 ? (
-            <p className="text-gray-400 text-center py-4">No members yet</p>
-          ) : (
-            members
-              .filter(m => m.status === 'accepted')
-              .map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg"
-                >
-                  <Avatar
-                    src={member.imageUrl}
-                    alt={member.name}
-                    size="md"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-white truncate">{member.name}</p>
-                    <p className="text-sm text-gray-400 capitalize">{member.role}</p>
-                  </div>
-                  {member.role === 'captain' && (
-                    <span className="px-2 py-0.5 bg-lime-900/50 text-lime-400 text-xs rounded-full">
-                      Captain
-                    </span>
-                  )}
-                  {group?.coCaptainIds?.includes(member.clerkId || '') && member.role !== 'captain' && (
-                    <span className="px-2 py-0.5 bg-blue-900/50 text-blue-400 text-xs rounded-full">
-                      Co-Captain
-                    </span>
-                  )}
-                </div>
-              ))
-          )}
-        </div>
-        <div className="mt-4 pt-4 border-t border-gray-700">
-          <Button variant="outline" onClick={() => setShowMembersModal(false)} className="w-full">
-            Close
           </Button>
         </div>
       </Modal>
