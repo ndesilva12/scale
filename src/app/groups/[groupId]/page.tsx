@@ -32,6 +32,7 @@ import Select from '@/components/ui/Select';
 import MemberGraph from '@/components/graph/MemberGraph';
 import DataTable from '@/components/graph/DataTable';
 import AddMemberForm from '@/components/groups/AddMemberForm';
+import BulkAddForm from '@/components/groups/BulkAddForm';
 import RatingForm from '@/components/groups/RatingForm';
 import { Group, GroupMember, GroupObject, Rating, AggregatedScore, ClaimRequest, Metric, MetricPrefix, MetricSuffix, PendingObject, ObjectType } from '@/types';
 import {
@@ -86,6 +87,7 @@ export default function GroupPage() {
     (initialTab === 'table' || initialTab === 'rate' || initialTab === 'graph') ? initialTab : 'graph'
   );
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showBulkAddModal, setShowBulkAddModal] = useState(false);
   const [showClaimRequestsModal, setShowClaimRequestsModal] = useState(false);
   const [showPendingItemsModal, setShowPendingItemsModal] = useState(false);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
@@ -275,6 +277,32 @@ export default function GroupPage() {
     }
 
     setShowAddMemberModal(false);
+  };
+
+  const handleBulkAddObjects = async (items: Array<{
+    email: string | null;
+    name: string;
+    placeholderImageUrl: string;
+    description: string | null;
+    itemType: ObjectType;
+    linkUrl: string | null;
+    itemCategory: string | null;
+  }>) => {
+    if (!user || !group || !isCaptain) return;
+
+    for (const item of items) {
+      await addObject(
+        groupId,
+        item.name,
+        item.description,
+        item.placeholderImageUrl || null,
+        item.itemType,
+        item.linkUrl,
+        item.itemCategory
+      );
+    }
+
+    setShowBulkAddModal(false);
   };
 
   const handleSubmitRating = async (metricId: string, targetObjectId: string, value: number) => {
@@ -524,7 +552,7 @@ export default function GroupPage() {
   const visibleObjects = objects.filter((obj) => obj.visibleInGraph);
 
   // Metric options for selectors
-  const metricOptions = group?.metrics.map((m) => ({ value: m.id, label: m.name })) || [];
+  const metricOptions = group?.metrics.map((m) => ({ value: m.id, label: m.name.toLowerCase() })) || [];
 
   if (loading || !isLoaded) {
     return (
@@ -599,27 +627,29 @@ export default function GroupPage() {
                   {group.description}
                 </p>
               )}
+            </div>
+            {/* Right side: members count + join button */}
+            <div className="flex items-center gap-3 flex-shrink-0">
               {/* Member count - clickable to show member list */}
               <button
                 onClick={() => setShowMembersModal(true)}
-                className="mt-2 flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+                className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
               >
                 <Users className="w-4 h-4" />
-                <span>{members.filter(m => m.status === 'accepted').length} members</span>
+                <span>{members.filter(m => m.status === 'accepted').length}</span>
               </button>
+              {/* Join button for non-members on open groups */}
+              {group.isOpen && user && !isMember && !isCaptain && (
+                <Button
+                  variant="secondary"
+                  onClick={handleJoinGroup}
+                  loading={joiningGroup}
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Join
+                </Button>
+              )}
             </div>
-            {/* Join button for non-members on open groups */}
-            {group.isOpen && user && !isMember && !isCaptain && (
-              <Button
-                variant="secondary"
-                onClick={handleJoinGroup}
-                loading={joiningGroup}
-                className="flex-shrink-0"
-              >
-                <UserPlus className="w-4 h-4 mr-2" />
-                Join Group
-              </Button>
-            )}
           </div>
         </div>
 
@@ -648,7 +678,7 @@ export default function GroupPage() {
                     className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[50px] justify-center pb-0.5"
                   >
                     <span className="text-white text-lg">
-                      {yMetricId ? group.metrics.find((m) => m.id === yMetricId)?.name : '\u00A0'}
+                      {yMetricId ? group.metrics.find((m) => m.id === yMetricId)?.name.toLowerCase() : '\u00A0'}
                     </span>
                   </button>
                   {showYAxisDropdown && (
@@ -657,7 +687,7 @@ export default function GroupPage() {
                         onClick={() => { setYMetricId(''); setShowYAxisDropdown(false); }}
                         className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-700 ${!yMetricId ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
                       >
-                        None
+                        none
                       </button>
                       {metricOptions.map((opt) => (
                         <button
@@ -686,7 +716,7 @@ export default function GroupPage() {
                     className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[50px] justify-center pb-0.5"
                   >
                     <span className="text-white text-lg">
-                      {xMetricId ? group.metrics.find((m) => m.id === xMetricId)?.name : '\u00A0'}
+                      {xMetricId ? group.metrics.find((m) => m.id === xMetricId)?.name.toLowerCase() : '\u00A0'}
                     </span>
                   </button>
                   {showXAxisDropdown && (
@@ -695,7 +725,7 @@ export default function GroupPage() {
                         onClick={() => { setXMetricId(''); setShowXAxisDropdown(false); }}
                         className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-700 ${!xMetricId ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
                       >
-                        None
+                        none
                       </button>
                       {metricOptions.map((opt) => (
                         <button
@@ -793,8 +823,21 @@ export default function GroupPage() {
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
                     >
                       <UserPlus className="w-4 h-4" />
-                      {isCaptain ? 'Add' : 'Suggest Item'}
+                      {isCaptain ? 'Add Item' : 'Suggest Item'}
                     </button>
+                    {/* Bulk Add - captain only */}
+                    {isCaptain && (
+                      <button
+                        onClick={() => {
+                          setShowBulkAddModal(true);
+                          setShowMobileCaptainMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-gray-700"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        Bulk Add
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -828,7 +871,7 @@ export default function GroupPage() {
                     className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[60px] sm:min-w-[80px] justify-center pb-1"
                   >
                     <span className="text-white">
-                      {yMetricId ? group.metrics.find((m) => m.id === yMetricId)?.name : '\u00A0'}
+                      {yMetricId ? group.metrics.find((m) => m.id === yMetricId)?.name.toLowerCase() : '\u00A0'}
                     </span>
                   </button>
                   {showYAxisDropdown && (
@@ -837,7 +880,7 @@ export default function GroupPage() {
                         onClick={() => { setYMetricId(''); setShowYAxisDropdown(false); }}
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-700 ${!yMetricId ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
                       >
-                        None
+                        none
                       </button>
                       {metricOptions.map((opt) => (
                         <button
@@ -866,7 +909,7 @@ export default function GroupPage() {
                     className="inline-flex items-center hover:opacity-80 transition-opacity disabled:opacity-50 border-b-2 border-lime-500 min-w-[60px] sm:min-w-[80px] justify-center pb-1"
                   >
                     <span className="text-white">
-                      {xMetricId ? group.metrics.find((m) => m.id === xMetricId)?.name : '\u00A0'}
+                      {xMetricId ? group.metrics.find((m) => m.id === xMetricId)?.name.toLowerCase() : '\u00A0'}
                     </span>
                   </button>
                   {showXAxisDropdown && (
@@ -875,7 +918,7 @@ export default function GroupPage() {
                         onClick={() => { setXMetricId(''); setShowXAxisDropdown(false); }}
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-700 ${!xMetricId ? 'bg-lime-900/20 text-lime-300' : 'text-gray-300'}`}
                       >
-                        None
+                        none
                       </button>
                       {metricOptions.map((opt) => (
                         <button
@@ -936,10 +979,18 @@ export default function GroupPage() {
             )}
             {/* Add/Suggest button - available to all members */}
             {canRate && (
-              <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
-                <UserPlus className="w-4 h-4 mr-2" />
-                {isCaptain ? 'Add' : 'Suggest'}
-              </Button>
+              <div className="flex gap-1.5">
+                <Button variant="secondary" onClick={() => setShowAddMemberModal(true)}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  {isCaptain ? 'Add' : 'Suggest'}
+                </Button>
+                {isCaptain && (
+                  <Button variant="outline" onClick={() => setShowBulkAddModal(true)} title="Bulk Add">
+                    <UserPlus className="w-4 h-4" />
+                    <span className="ml-1 text-xs">+</span>
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -1082,7 +1133,18 @@ export default function GroupPage() {
           onUploadImage={(file) => uploadObjectImage(groupId, file)}
           existingEmails={members.filter((m) => m.email).map((m) => m.email!.toLowerCase())}
           groupId={groupId}
-          itemCategories={group?.itemCategories || []}
+        />
+      </Modal>
+
+      {/* Bulk Add Modal */}
+      <Modal
+        isOpen={showBulkAddModal}
+        onClose={() => setShowBulkAddModal(false)}
+        title="Bulk Add Items"
+      >
+        <BulkAddForm
+          onSubmit={handleBulkAddObjects}
+          onCancel={() => setShowBulkAddModal(false)}
         />
       </Modal>
 

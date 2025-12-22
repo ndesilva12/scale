@@ -269,8 +269,8 @@ export default function MemberGraph({
       ref={containerRef}
       className="relative w-full h-full min-h-[300px] sm:min-h-[400px] bg-gray-900 rounded-none sm:rounded-xl border border-gray-700/50"
     >
-      {/* Y-axis label - hidden on mobile, shown on larger screens */}
-      <div className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full pl-1 md:pl-2">
+      {/* Y-axis label - hidden on mobile, shown on larger screens - positioned at 100 (top) */}
+      <div className="hidden md:block absolute left-0 top-2 -translate-x-full pl-1 md:pl-2">
         <div className="transform -rotate-90 origin-right whitespace-nowrap">
           <span className={`px-3 py-1.5 rounded-full text-sm md:text-base font-semibold border ${
             yMetricId
@@ -282,8 +282,8 @@ export default function MemberGraph({
         </div>
       </div>
 
-      {/* X-axis label - hidden on mobile, shown on larger screens */}
-      <div className="hidden md:block absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full pt-1 md:pt-2">
+      {/* X-axis label - hidden on mobile, shown on larger screens - positioned at 100 (right) */}
+      <div className="hidden md:block absolute bottom-0 right-2 translate-y-full pt-1 md:pt-2">
         <span className={`px-3 py-1.5 rounded-full text-sm md:text-base font-semibold border ${
           xMetricId
             ? 'bg-gray-800 text-gray-200 border-gray-600 shadow-sm'
@@ -293,18 +293,18 @@ export default function MemberGraph({
         </span>
       </div>
 
-      {/* Mobile Y-axis label - positioned at 75% mark (25% from top) */}
+      {/* Mobile Y-axis label - positioned at 100 (top) */}
       {yMetricId && (
-        <div className="md:hidden absolute left-1 top-[25%] -translate-y-1/2 z-10">
+        <div className="md:hidden absolute left-1 top-2 z-10">
           <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-800/90 text-gray-300 border border-gray-600 shadow-sm whitespace-nowrap">
             {yMetric?.name || 'Y'}
           </span>
         </div>
       )}
 
-      {/* Mobile X-axis label - positioned at 75% mark */}
+      {/* Mobile X-axis label - positioned at 100 (right) */}
       {xMetricId && (
-        <div className="md:hidden absolute bottom-3 left-[75%] -translate-x-1/2 z-10">
+        <div className="md:hidden absolute bottom-3 right-2 z-10">
           <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-800/90 text-gray-300 border border-gray-600 shadow-sm whitespace-nowrap">
             {xMetric?.name || 'X'}
           </span>

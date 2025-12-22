@@ -7,54 +7,58 @@ export default function SignInPage() {
         appearance={{
           variables: {
             colorPrimary: '#84cc16',
-            colorBackground: '#111827',
+            colorBackground: '#1f2937',
             colorText: '#ffffff',
-            colorTextSecondary: '#d1d5db',
-            colorInputBackground: '#1f2937',
+            colorTextSecondary: '#9ca3af',
+            colorInputBackground: '#374151',
             colorInputText: '#ffffff',
-            colorDanger: '#9ca3af',
-            borderRadius: '0.75rem',
-            fontSize: '1rem',
+            colorDanger: '#ef4444',
+            borderRadius: '1rem',
+            fontSize: '0.875rem',
           },
           elements: {
             rootBox: 'mx-auto',
-            card: 'bg-gray-800 backdrop-blur-xl border border-gray-600 shadow-[0_0_50px_rgba(132,204,22,0.15)] rounded-2xl p-8',
-            headerTitle: 'text-white text-2xl font-bold',
-            headerSubtitle: 'text-gray-300 text-base',
-            // Social buttons - dark with visible border
-            socialButtonsBlockButton: 'bg-gray-700 border-2 border-gray-500 text-white hover:bg-gray-600 hover:border-gray-400 transition-all rounded-xl py-3',
-            socialButtonsBlockButtonText: 'text-white font-medium text-base',
+            card: 'bg-gray-800/90 backdrop-blur-xl border border-white/10 shadow-2xl rounded-3xl p-6',
+            headerTitle: 'text-white text-xl font-bold',
+            headerSubtitle: 'text-gray-400 text-sm',
+            // Social buttons
+            socialButtonsBlockButton: 'bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all rounded-2xl py-2.5',
+            socialButtonsBlockButtonText: 'text-white font-medium text-sm',
             socialButtonsBlockButtonArrow: 'text-white',
             socialButtonsProviderIcon: 'w-5 h-5',
             // Divider
-            dividerLine: 'bg-gray-600',
-            dividerText: 'text-gray-400 text-sm bg-gray-800',
-            // Form fields
-            formFieldLabel: 'text-gray-200 text-sm font-medium',
-            formFieldInput: 'bg-gray-700 border-2 border-gray-500 text-white text-base py-3 px-4 rounded-xl focus:border-lime-500 focus:ring-2 focus:ring-lime-500/30 placeholder:text-gray-400',
+            dividerLine: 'bg-white/10',
+            dividerText: 'text-gray-500 text-xs bg-gray-800',
+            // Form fields - subtle borders
+            formFieldLabel: 'text-gray-300 text-xs font-medium',
+            formFieldInput: 'bg-white/5 border border-white/10 text-white text-sm py-2.5 px-3 rounded-2xl focus:border-lime-500/50 focus:ring-1 focus:ring-lime-500/30 placeholder:text-gray-500',
             formFieldInputShowPasswordButton: 'text-gray-400 hover:text-white',
-            // Primary button - lime accent
-            formButtonPrimary: 'bg-lime-600 border-0 text-white hover:bg-lime-500 transition-all rounded-xl py-3 font-semibold text-base shadow-lg',
+            formFieldHintText: 'text-gray-500 text-xs',
+            // Primary button - glass style to match app
+            formButtonPrimary: 'bg-white/10 border border-white/30 text-white hover:bg-white/15 hover:border-white/50 transition-all rounded-2xl py-2.5 font-medium text-sm',
             // Footer links
-            footerActionLink: 'text-lime-400 hover:text-lime-300 font-medium',
-            footerActionText: 'text-gray-400',
+            footerActionLink: 'text-lime-400 hover:text-lime-300 font-medium text-sm',
+            footerActionText: 'text-gray-400 text-sm',
             // Identity preview
-            identityPreviewText: 'text-white text-base',
+            identityPreviewText: 'text-white text-sm',
             identityPreviewEditButton: 'text-lime-400 hover:text-lime-300',
             identityPreviewEditButtonIcon: 'text-lime-400',
-            // Alert/development banner - subtle grey
-            alert: 'bg-gray-700/50 border border-gray-600 text-gray-300 rounded-xl',
-            alertText: 'text-gray-300 text-sm',
-            alertTextDanger: 'text-gray-400',
-            // Badge (development mode)
-            badge: 'bg-gray-600 border border-gray-500 text-gray-300 rounded-lg',
-            // Other elements
-            formResendCodeLink: 'text-lime-400 hover:text-lime-300',
-            otpCodeFieldInput: 'bg-gray-700 border-2 border-gray-500 text-white rounded-xl',
-            alternativeMethodsBlockButton: 'bg-gray-700 border-2 border-gray-500 text-white hover:bg-gray-600 rounded-xl',
-            // Internal card styling
-            main: 'gap-6',
-            form: 'gap-4',
+            // Alert/development banner
+            alert: 'bg-white/5 border border-white/10 text-gray-300 rounded-2xl text-xs',
+            alertText: 'text-gray-400 text-xs',
+            alertTextDanger: 'text-red-400 text-xs',
+            // Badge
+            badge: 'bg-white/5 border border-white/10 text-gray-400 rounded-xl text-xs',
+            // OTP
+            formResendCodeLink: 'text-lime-400 hover:text-lime-300 text-sm',
+            otpCodeFieldInput: 'bg-white/5 border border-white/10 text-white rounded-xl',
+            alternativeMethodsBlockButton: 'bg-white/5 border border-white/10 text-white hover:bg-white/10 rounded-2xl text-sm',
+            // Layout
+            main: 'gap-4',
+            form: 'gap-3',
+            // Remove internal backgrounds
+            formFieldRow: 'gap-2',
+            formField: 'gap-1',
           },
         }}
       />
