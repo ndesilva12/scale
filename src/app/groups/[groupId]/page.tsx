@@ -483,17 +483,30 @@ export default function GroupPage() {
     if (!obj) return;
 
     const currentDisabled = obj.disabledMetricIds || [];
+    const currentEnabled = obj.enabledMetricIds || [];
     let newDisabled: string[];
+    let newEnabled: string[];
 
     if (enabled) {
-      // Remove from disabled list
+      // Remove from disabled list and add to enabled list
       newDisabled = currentDisabled.filter((id: string) => id !== metricId);
+      // Add to enabled list if not already there (to override category restrictions)
+      newEnabled = currentEnabled.includes(metricId)
+        ? currentEnabled
+        : [...currentEnabled, metricId];
     } else {
-      // Add to disabled list
-      newDisabled = [...currentDisabled, metricId];
+      // Remove from enabled list and add to disabled list
+      newEnabled = currentEnabled.filter((id: string) => id !== metricId);
+      // Add to disabled list if not already there
+      newDisabled = currentDisabled.includes(metricId)
+        ? currentDisabled
+        : [...currentDisabled, metricId];
     }
 
-    await updateObject(objectId, { disabledMetricIds: newDisabled });
+    await updateObject(objectId, {
+      disabledMetricIds: newDisabled,
+      enabledMetricIds: newEnabled,
+    });
   };
 
   // Handle pending item approval/rejection
