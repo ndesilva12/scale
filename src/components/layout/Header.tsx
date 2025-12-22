@@ -4,20 +4,39 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useUser, SignedIn, SignedOut, useClerk } from '@clerk/nextjs';
 import { Menu, X, LayoutDashboard, LogOut, User, Settings } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Button from '@/components/ui/Button';
 
 export default function Header() {
   const { user } = useUser();
   const { signOut, openUserProfile } = useClerk();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    if (profileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [profileMenuOpen]);
 
   return (
     <header className="sticky top-0 z-50 bg-gray-900/90 backdrop-blur-md border-b border-white/10 pt-[env(safe-area-inset-top)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 py-2">
+          {/* Logo - links to dashboard when logged in, homepage when not */}
+          <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2 py-2">
             <Image
               src="/scalem.png"
               alt="Scale"
@@ -38,8 +57,11 @@ export default function Header() {
                 <LayoutDashboard className="w-4 h-4" />
                 Dashboard
               </Link>
-              <div className="relative group">
-                <button className="flex items-center gap-2 p-1 rounded-full hover:bg-white/10 transition-colors">
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  className="flex items-center gap-2 p-1 rounded-full hover:bg-white/10 transition-colors"
+                >
                   {user?.imageUrl ? (
                     <img src={user.imageUrl} alt="" className="w-9 h-9 rounded-full" />
                   ) : (
@@ -48,26 +70,34 @@ export default function Header() {
                     </div>
                   )}
                 </button>
-                <div className="absolute right-0 top-full mt-2 w-48 bg-gray-800 border border-white/10 rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all py-2">
-                  <div className="px-4 py-2 border-b border-white/10">
-                    <p className="text-sm font-medium text-white truncate">{user?.fullName || user?.firstName}</p>
-                    <p className="text-xs text-gray-400 truncate">{user?.emailAddresses[0]?.emailAddress}</p>
+                {profileMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-gray-800 border border-white/10 rounded-2xl shadow-xl py-2">
+                    <div className="px-4 py-2 border-b border-white/10">
+                      <p className="text-sm font-medium text-white truncate">{user?.fullName || user?.firstName}</p>
+                      <p className="text-xs text-gray-400 truncate">{user?.emailAddresses[0]?.emailAddress}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        openUserProfile();
+                        setProfileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Settings
+                    </button>
+                    <button
+                      onClick={() => {
+                        signOut();
+                        setProfileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
                   </div>
-                  <button
-                    onClick={() => openUserProfile()}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
-                  >
-                    <Settings className="w-4 h-4" />
-                    Settings
-                  </button>
-                  <button
-                    onClick={() => signOut()}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Sign Out
-                  </button>
-                </div>
+                )}
               </div>
             </SignedIn>
             <SignedOut>

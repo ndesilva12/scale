@@ -171,8 +171,8 @@ export default function DashboardPage() {
         {/* My Groups Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-lime-400" />
-            <h1 className="text-lg sm:text-xl font-bold text-white">My Groups</h1>
+            <Users className="w-6 h-6 text-lime-400" />
+            <h1 className="text-xl sm:text-2xl font-bold text-white">My Groups</h1>
           </div>
           <Button variant="secondary" size="sm" onClick={() => setShowCreateModal(true)}>
             <Plus className="w-4 h-4 sm:mr-1" />
@@ -232,8 +232,8 @@ export default function DashboardPage() {
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Flame className="w-5 h-5 text-teal-400" />
-              <h2 className="text-base font-bold text-white">Popular</h2>
+              <Flame className="w-6 h-6 text-teal-400" />
+              <h2 className="text-xl sm:text-2xl font-bold text-white">Popular</h2>
             </div>
             {popularGroups.length > 3 && (
               <Link href="/dashboard/popular" className="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1">
@@ -294,11 +294,11 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-500" />
-              <h2 className="text-base font-bold text-white">Trending</h2>
+              <TrendingUp className="w-6 h-6 text-sky-400" />
+              <h2 className="text-xl sm:text-2xl font-bold text-white">Trending</h2>
             </div>
             {trendingGroups.length > 3 && (
-              <Link href="/dashboard/trending" className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1">
+              <Link href="/dashboard/trending" className="text-xs text-sky-400 hover:text-violet-400 flex items-center gap-1">
                 Show more <ChevronRight className="w-3 h-3" />
               </Link>
             )}
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                 <Link key={group.id} href={`/groups/${group.id}`}>
                   {/* Mobile: Compact row */}
                   <div className="sm:hidden flex items-center gap-3 p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-colors">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-600 to-sky-500 flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-400 to-violet-400 flex items-center justify-center flex-shrink-0">
                       <TrendingUp className="w-4 h-4 text-white" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -327,7 +327,7 @@ export default function DashboardPage() {
                 <Link key={group.id} href={`/groups/${group.id}`}>
                   {/* Desktop: Card */}
                   <Card className="hidden sm:block overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full border border-white/10 bg-white/5">
-                    <div className="h-1 bg-gradient-to-r from-emerald-600 to-sky-500" />
+                    <div className="h-1 bg-gradient-to-r from-sky-400 to-violet-400" />
                     <div className="p-3">
                       <h3 className="font-bold text-white text-sm truncate mb-1">{group.name}</h3>
                       {group.description && (
